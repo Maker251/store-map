@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>SK 대리점 지도 (1~41 번호 표시)</title>
+  <title>SK 대리점 지도 (방문 관리)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -23,12 +23,28 @@
       font-size: 13px;
       z-index: 1000;
     }
+    .popup-btn {
+      padding: 6px 10px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .btn-visit {
+      background: #1976d2;
+      color: #fff;
+    }
+    .btn-unvisit {
+      background: #999;
+      color: #fff;
+      margin-left: 6px;
+    }
   </style>
 </head>
 
 <body>
   <div id="map"></div>
-  <div class="legend">🔴 번호(1~41) 기준 대리점 위치</div>
+  <div class="legend">🔴 미방문 / 🔵 방문 완료</div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -44,17 +60,19 @@
     }).addTo(map);
 
     const markers = L.featureGroup().addTo(map);
+    const storeMarkers = {}; // 마커 참조 저장
 
     /**********************
-     * 2. 번호 아이콘
+     * 2. 번호 아이콘 (방문 여부 반영)
      **********************/
-    function numberIcon(no) {
+    function numberIcon(no, visited) {
+      const color = visited ? "#1976d2" : "#d32f2f"; // 파랑 / 빨강
       return L.divIcon({
         html: `
           <div style="
             width:30px;
             height:30px;
-            background:#d32f2f;
+            background:${color};
             color:#fff;
             font-weight:bold;
             border-radius:50%;
@@ -82,7 +100,6 @@
       {no:5, name:"광장대리점 구의점", lat:37.5383, lng:127.0839, addr:"서울 광진구 아차산로 415"},
       {no:6, name:"울림터대리점 건대이마트점", lat:37.5416, lng:127.0719, addr:"서울 광진구 자양동 227-7"},
       {no:7, name:"울림터대리점 구의역점", lat:37.5375, lng:127.0856, addr:"서울 광진구 자양로 93"},
-
       {no:8, name:"알파대리점 노원직영점", lat:37.6569, lng:127.0635, addr:"서울 노원구 노해로 490"},
       {no:9, name:"신창대리점 공릉역점", lat:37.6269, lng:127.0727, addr:"서울 노원구 동일로 1077"},
       {no:10, name:"가능대리점 상계직영점", lat:37.6551, lng:127.0612, addr:"서울 노원구 동일로 1379"},
@@ -93,7 +110,6 @@
       {no:15, name:"신창대리점 광운대점", lat:37.6233, lng:127.0589, addr:"서울 노원구 석계로 95"},
       {no:16, name:"ACE대리점 은행사거리점", lat:37.6461, lng:127.0736, addr:"서울 노원구 한글비석로 254"},
       {no:17, name:"서울ent대리점 상계역점", lat:37.6602, lng:127.0731, addr:"서울 노원구 한글비석로 384"},
-
       {no:18, name:"상록수대리점 우장산점", lat:37.5483, lng:126.8364, addr:"서울 강서구 강서로 242"},
       {no:19, name:"동진대리점 강서중앙점", lat:37.5489, lng:126.8419, addr:"서울 강서구 강서로 279"},
       {no:20, name:"동진대리점 까치산역 본점", lat:37.5316, lng:126.8462, addr:"서울 강서구 강서로 63"},
@@ -108,7 +124,6 @@
       {no:29, name:"세하대리점 화곡역본점", lat:37.5419, lng:126.8401, addr:"서울 강서구 화곡로 190"},
       {no:30, name:"동진대리점 화곡직영점", lat:37.5358, lng:126.8413, addr:"서울 강서구 화곡로25길 2"},
       {no:31, name:"동진대리점 가양역 본점", lat:37.5613, lng:126.8542, addr:"서울 강서구 화곡로68길 3"},
-
       {no:32, name:"PS&M (등촌역점)", lat:37.5512, lng:126.8643, addr:"서울 양천구 공항대로 564"},
       {no:33, name:"강서대리점 신월본점", lat:37.5219, lng:126.8427, addr:"서울 양천구 남부순환로 354"},
       {no:34, name:"참스타대리점 신월점", lat:37.5228, lng:126.8456, addr:"서울 양천구 남부순환로 585"},
@@ -122,41 +137,46 @@
     ];
 
     /**********************
-     * 4. 마커 표시
+     * 4. 마커 생성 + 방문 처리
      **********************/
     locations.forEach(({ no, name, lat, lng, addr }) => {
+      const visited = localStorage.getItem(`visited_${no}`) === "true";
+
       const marker = L.marker([lat, lng], {
-        icon: numberIcon(no)
+        icon: numberIcon(no, visited)
       }).addTo(markers);
 
-      // 매장명 라벨
-      const labelIcon = L.divIcon({
-        html: `
-          <span style="
-            font-size:13px;
-            font-weight:bold;
-            color:#333;
-            background:#fffbe7;
-            border:1px solid #d32f2f;
-            border-radius:5px;
-            padding:2px 6px;
-            white-space:nowrap;
-          ">${name}</span>
-        `,
-        iconAnchor: [-10, 0],
-        className: ""
-      });
+      storeMarkers[no] = marker;
 
-      L.marker([lat, lng], {
-        icon: labelIcon,
-        interactive: false
-      }).addTo(markers);
-
-      marker.bindPopup(`<b>${no}. ${name}</b><br>${addr}`);
+      marker.bindPopup(`
+        <b>${no}. ${name}</b><br/>
+        ${addr}<br/><br/>
+        <button class="popup-btn btn-visit" onclick="markVisited(${no})">방문 완료</button>
+        <button class="popup-btn btn-unvisit" onclick="markUnvisited(${no})">방문 취소</button>
+      `);
     });
 
     /**********************
-     * 5. 전체 영역 맞추기
+     * 5. 방문 상태 변경 함수
+     **********************/
+    function markVisited(no) {
+      localStorage.setItem(`visited_${no}`, "true");
+      updateMarker(no);
+    }
+
+    function markUnvisited(no) {
+      localStorage.removeItem(`visited_${no}`);
+      updateMarker(no);
+    }
+
+    function updateMarker(no) {
+      const marker = storeMarkers[no];
+      const visited = localStorage.getItem(`visited_${no}`) === "true";
+      marker.setIcon(numberIcon(no, visited));
+    }
+
+    /**********************
+     * 6. 전체 영역 맞추기
      **********************/
     if (markers.getLayers().length > 0) {
       map.fitBounds(markers.getBounds().pad(0.15));
