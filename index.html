@@ -8,7 +8,7 @@
 
   <title>NCSI 대리점 정밀 지도</title>
 
-  <!-- 네이버 지도 SDK (Client ID만 사용) -->
+  <!-- 네이버 지도 SDK : Client ID만 사용 -->
   <script src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=k8vacdhpym&submodules=geocoder"></script>
 
   <style>
@@ -30,7 +30,7 @@
       left: 50%;
       transform: translateX(-50%);
       z-index: 1000;
-      background: rgba(255, 255, 255, 0.95);
+      background: rgba(255,255,255,0.95);
       padding: 10px 18px;
       border-radius: 20px;
       box-shadow: 0 2px 10px rgba(0,0,0,.15);
@@ -117,58 +117,62 @@ const bounds = new naver.maps.LatLngBounds();
 let completed = 0;
 
 /* ===============================
-   3. 주소 → 좌표 변환
+   3. 주소 → 좌표 변환 (SDK 방식만 사용)
 ================================ */
 stores.forEach((store, index) => {
   setTimeout(() => {
-    naver.maps.Service.geocode({ query: store.address }, (status, response) => {
+    naver.maps.Service.geocode(
+      { query: store.address },
+      function(status, response) {
 
-      if (
-        status === naver.maps.Service.Status.OK &&
-        response.v2.addresses &&
-        response.v2.addresses.length > 0
-      ) {
-        const addr = response.v2.addresses[0];
+        if (
+          status === naver.maps.Service.Status.OK &&
+          response.v2 &&
+          response.v2.addresses &&
+          response.v2.addresses.length > 0
+        ) {
+          const addr = response.v2.addresses[0];
 
-        const position = new naver.maps.LatLng(
-          parseFloat(addr.y),
-          parseFloat(addr.x)
-        );
+          const position = new naver.maps.LatLng(
+            parseFloat(addr.y),
+            parseFloat(addr.x)
+          );
 
-        bounds.extend(position);
+          bounds.extend(position);
 
-        const marker = new naver.maps.Marker({
-          position,
-          map
-        });
+          const marker = new naver.maps.Marker({
+            position: position,
+            map: map
+          });
 
-        const overlay = new naver.maps.CustomOverlay({
-          position,
-          content: `<div class="label-container">${store.num}. ${store.name}</div>`,
-          yAnchor: 2.3,
-          map
-        });
+          new naver.maps.CustomOverlay({
+            position: position,
+            content: `<div class="label-container">${store.num}. ${store.name}</div>`,
+            yAnchor: 2.3,
+            map: map
+          });
 
-        const info = new naver.maps.InfoWindow({
-          content: `
-            <div style="padding:10px; line-height:1.6;">
-              <b>${store.num}. ${store.name}</b><br/>
-              ${store.address}
-            </div>`
-        });
+          const info = new naver.maps.InfoWindow({
+            content: `
+              <div style="padding:10px; line-height:1.6;">
+                <b>${store.num}. ${store.name}</b><br/>
+                ${store.address}
+              </div>`
+          });
 
-        naver.maps.Event.addListener(marker, "click", () => {
-          info.open(map, marker);
-        });
+          naver.maps.Event.addListener(marker, "click", () => {
+            info.open(map, marker);
+          });
+        }
+
+        completed++;
+        if (completed === stores.length) {
+          map.fitBounds(bounds);
+          document.getElementById("loading").style.display = "none";
+        }
       }
-
-      completed++;
-      if (completed === stores.length) {
-        map.fitBounds(bounds);
-        document.getElementById("loading").style.display = "none";
-      }
-    });
-  }, index * 70); // 호출 간격 조절
+    );
+  }, index * 80); // 호출 간격 조절 (안정성)
 });
 </script>
 
