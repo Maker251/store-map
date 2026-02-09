@@ -1,215 +1,130 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <title>대리점 지도</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
-  <style>
-    html, body, #map { height:100%; margin:0; }
-
-    .status-box {
-      position:absolute; top:10px; left:10px;
-      background:#fff; padding:10px 14px;
-      border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,.18);
-      font-size:14px; z-index:1000;
-    }
-    .status-box .percent {
-      font-size:20px; font-weight:bold; color:#1976d2;
-    }
-
-    .export-box {
-      position:absolute; top:10px; right:10px; z-index:1000;
-    }
-    .export-box button {
-      padding:8px 12px; border:none; border-radius:6px;
-      background:#1976d2; color:#fff; cursor:pointer;
-    }
-
-    .popup-btn {
-      padding:6px 10px; border:none; border-radius:4px;
-      font-size:13px; cursor:pointer; margin-right:4px;
-    }
-    .btn-visit { background:#1976d2; color:#fff; }
-    .btn-unvisit { background:#999; color:#fff; }
-
-    textarea {
-      width:100%; height:70px; resize:none;
-      font-size:12px; margin-top:6px;
-    }
-    .char-count {
-      font-size:11px; text-align:right; color:#666;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+    <title>NCSI 대리점 정밀 지도</title>
+    <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=eO6ciftMxvfb36vOVMQxXCPykYtXMP46GKOKzSEP&submodules=geocoder"></script>
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Malgun Gothic', sans-serif; }
+        #map { width: 100%; height: 100%; }
+        .label-container {
+            background: #fff;
+            border: 2px solid #ff4d4d;
+            border-radius: 5px;
+            padding: 2px 6px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #333;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            white-space: nowrap;
+        }
+        .loading-bar {
+            position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+            z-index: 1000; background: rgba(255,255,255,0.9); padding: 10px 20px;
+            border-radius: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            font-size: 14px; display: block;
+        }
+    </style>
 </head>
-
 <body>
+<div id="loading" class="loading-bar">지도를 불러오고 주소를 변환 중입니다...</div>
 <div id="map"></div>
 
-<div class="status-box">
-  <div>📍 방문 완료율</div>
-  <div class="percent" id="percentText">0%</div>
-  <div id="countText">0 / 41 완료</div>
-</div>
-
-<div class="export-box">
-  <button onclick="exportCSV()">📥 CSV 다운로드</button>
-</div>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const TOTAL_COUNT = 41;
-
-/* 지도 */
-const map = L.map("map").setView([37.56, 126.98], 11);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 19
-}).addTo(map);
-
-const markers = L.featureGroup().addTo(map);
-const storeMarkers = {};
-
-/* 아이콘 */
-function numberIcon(no, visited) {
-  const color = visited ? "#1976d2" : "#d32f2f";
-  return L.divIcon({
-    html:`<div style="
-      width:30px;height:30px;border-radius:50%;
-      background:${color};color:#fff;font-weight:bold;
-      display:flex;align-items:center;justify-content:center;
-      box-shadow:0 2px 6px rgba(0,0,0,.35);">
-      ${no}</div>`,
-    iconSize:[30,30],
-    iconAnchor:[15,30],
-    className:""
-  });
-}
-
-/* 1~41 위치 데이터 */
-const locations = [
-  {no:1,name:"울림터대리점 군자역점",lat:37.5569,lng:127.0786,addr:"서울 광진구 군자동 477-19"},
-  {no:2,name:"다원대리점 중곡직영점",lat:37.5608,lng:127.0832,addr:"서울 광진구 긴고랑로 115"},
-  {no:3,name:"광장대리점 중곡점",lat:37.5652,lng:127.0815,addr:"서울 광진구 면목로 160"},
-  {no:4,name:"울림터대리점 본점",lat:37.5409,lng:127.0714,addr:"서울 광진구 아차산로 220"},
-  {no:5,name:"광장대리점 구의점",lat:37.5383,lng:127.0839,addr:"서울 광진구 아차산로 415"},
-  {no:6,name:"울림터대리점 건대이마트점",lat:37.5416,lng:127.0719,addr:"서울 광진구 자양동 227-7"},
-  {no:7,name:"울림터대리점 구의역점",lat:37.5375,lng:127.0856,addr:"서울 광진구 자양로 93"},
-  {no:8,name:"알파대리점 노원직영점",lat:37.6569,lng:127.0635,addr:"서울 노원구 노해로 490"},
-  {no:9,name:"신창대리점 공릉역점",lat:37.6269,lng:127.0727,addr:"서울 노원구 동일로 1077"},
-  {no:10,name:"가능대리점 상계직영점",lat:37.6551,lng:127.0612,addr:"서울 노원구 동일로 1379"},
-  {no:11,name:"PS&M 마들역점",lat:37.6642,lng:127.0576,addr:"서울 노원구 동일로 1538"},
-  {no:12,name:"서울ent대리점 공릉직영점",lat:37.6247,lng:127.0756,addr:"서울 노원구 동일로192길 11"},
-  {no:13,name:"신창대리점 노원역직영점",lat:37.6556,lng:127.0617,addr:"서울 노원구 상계로 75"},
-  {no:14,name:"알파대리점 석계역점",lat:37.6151,lng:127.0658,addr:"서울 노원구 석계로 4"},
-  {no:15,name:"신창대리점 광운대점",lat:37.6233,lng:127.0589,addr:"서울 노원구 석계로 95"},
-  {no:16,name:"ACE대리점 은행사거리점",lat:37.6461,lng:127.0736,addr:"서울 노원구 한글비석로 254"},
-  {no:17,name:"서울ent대리점 상계역점",lat:37.6602,lng:127.0731,addr:"서울 노원구 한글비석로 384"},
-  {no:18,name:"상록수대리점 우장산점",lat:37.5483,lng:126.8364,addr:"서울 강서구 강서로 242"},
-  {no:19,name:"동진대리점 강서중앙점",lat:37.5489,lng:126.8419,addr:"서울 강서구 강서로 279"},
-  {no:20,name:"동진대리점 까치산역 본점",lat:37.5316,lng:126.8462,addr:"서울 강서구 강서로 63"},
-  {no:21,name:"참스타대리점 등촌점",lat:37.5538,lng:126.8612,addr:"서울 강서구 강서로56길 16"},
-  {no:22,name:"신나는 마곡직영점",lat:37.5594,lng:126.8339,addr:"서울 강서구 공항대로 168"},
-  {no:23,name:"강서대리점 염창역점",lat:37.5462,lng:126.8748,addr:"서울 강서구 공항대로 635"},
-  {no:24,name:"동진대리점 마곡본점",lat:37.5619,lng:126.8275,addr:"서울 강서구 마곡동 727-1271"},
-  {no:25,name:"동진대리점 마곡나루점",lat:37.5661,lng:126.8284,addr:"서울 강서구 마곡중앙로 161-17"},
-  {no:26,name:"참스타대리점 블루나인점",lat:37.5457,lng:126.8829,addr:"서울 강서구 양천로 583"},
-  {no:27,name:"큰사랑대리점 방화직영점",lat:37.5731,lng:126.8174,addr:"서울 강서구 양천로 73"},
-  {no:28,name:"PS&M 화곡역점",lat:37.5411,lng:126.8406,addr:"서울 강서구 화곡로 161"},
-  {no:29,name:"세하대리점 화곡역본점",lat:37.5419,lng:126.8401,addr:"서울 강서구 화곡로 190"},
-  {no:30,name:"동진대리점 화곡직영점",lat:37.5358,lng:126.8413,addr:"서울 강서구 화곡로25길 2"},
-  {no:31,name:"동진대리점 가양역 본점",lat:37.5613,lng:126.8542,addr:"서울 강서구 화곡로68길 3"},
-  {no:32,name:"PS&M 등촌역점",lat:37.5512,lng:126.8643,addr:"서울 양천구 공항대로 564"},
-  {no:33,name:"강서대리점 신월본점",lat:37.5219,lng:126.8427,addr:"서울 양천구 남부순환로 354"},
-  {no:34,name:"참스타대리점 신월점",lat:37.5228,lng:126.8456,addr:"서울 양천구 남부순환로 585"},
-  {no:35,name:"유원대리점 목동41타워점",lat:37.5264,lng:126.8752,addr:"서울 양천구 목동동로 293"},
-  {no:36,name:"한유대리점 목동광장직영점",lat:37.5293,lng:126.8758,addr:"서울 양천구 목동동로 379"},
-  {no:37,name:"새서울대리점 신정직영점",lat:37.5234,lng:126.8741,addr:"서울 양천구 목동동로 53"},
-  {no:38,name:"유원대리점 목동본점",lat:37.5299,lng:126.8721,addr:"서울 양천구 목동서로 63"},
-  {no:39,name:"MD대리점 염창동직영점",lat:37.5507,lng:126.8729,addr:"서울 양천구 목동중앙본로 126"},
-  {no:40,name:"세하대리점 등촌깨비시장점",lat:37.5531,lng:126.8678,addr:"서울 양천구 목동중앙북로 29"},
-  {no:41,name:"세하 신정본점",lat:37.5212,lng:126.8734,addr:"서울 양천구 중앙로 267"}
+// 1. 대리점 데이터 배열
+const stores = [
+    {num: 1, name: "울림터대리점 군자역점", address: "서울 광진구 군자동 477-19번지"},
+    {num: 2, name: "다원대리점 중곡직영점", address: "서울 광진구 긴고랑로 115 (중곡동)"},
+    {num: 3, name: "광장대리점 중곡점", address: "서울 광진구 면목로 160, 1동 1호"},
+    {num: 4, name: "울림터대리점 본점", address: "서울 광진구 아차산로 220, 1층 (자양동,송천빌딩)"},
+    {num: 5, name: "광장대리점 구의점", address: "서울 광진구 아차산로 415 (구의동,장안빌딩)"},
+    {num: 6, name: "PS&M (강변역점)", address: "서울 광진구 광나루로56길 85 (구의동,테크노마트) 1층 C-25호"},
+    {num: 7, name: "PS&M (강변역 2호점)", address: "서울 광진구 광나루로56길 85 (구의동,테크노마트) 지하 1층 D-36호"},
+    {num: 8, name: "광장대리점 광장점", address: "서울 광진구 광나루로 590, 1층(구의동)"},
+    {num: 9, name: "다원대리점 구의본점", address: "서울 광진구 자양로 116, 1층(구의동)"},
+    {num: 10, name: "광장대리점 자양점", address: "서울 광진구 자양로 50, 1층(자양동)"},
+    {num: 11, name: "PS&M (건대입구역점)", address: "서울 광진구 아차산로 229 (화양동) 한림타워 1층"},
+    {num: 12, name: "동진대리점 화양점", address: "서울 광진구 아차산로 201, 1층(화양동)"},
+    {num: 13, name: "성진대리점 건대점", address: "서울 광진구 동일로20길 113, 1층 101호(화양동)"},
+    {num: 14, name: "다원대리점 건대점", address: "서울 광진구 능동로 135-1, 1층(화양동)"},
+    {num: 15, name: "PS&M (군자역점)", address: "서울 광진구 천호대로 549 (중곡동) G-TOWER 1층"},
+    {num: 16, name: "동진대리점 중곡역점", address: "서울 광진구 능동로 394, 1층(중곡동)"},
+    {num: 17, name: "참스타대리점 중곡본점", address: "서울 광진구 능동로 346, 1층(중곡동)"},
+    {num: 18, name: "다원대리점 중곡본점", address: "서울 광진구 면목로 151, 1층(중곡동)"},
+    {num: 19, name: "울림터대리점 능동점", address: "서울 광진구 천호대로 522, 1층(능동)"},
+    {num: 20, name: "PS&M (어린이대공원역점)", address: "서울 광진구 능동로 189, 1층 102호(화양동)"},
+    {num: 21, name: "광장대리점 성수점", address: "서울 성동구 아차산로 110, 1층(성수동2가)"},
+    {num: 22, name: "PS&M (성수점)", address: "서울 성동구 아차산로 103 (성수동2가) 1층"},
+    {num: 23, name: "동진대리점 뚝섬역점", address: "서울 성동구 상원길 15, 1층(성수동1가)"},
+    {num: 24, name: "다원대리점 성수본점", address: "서울 성동구 아차산로 51-1, 1층(성수동1가)"},
+    {num: 25, name: "PS&M (한양대점)", address: "서울 성동구 사근동길 2, 1층(행당동)"},
+    {num: 26, name: "동진대리점 왕십리역점", address: "서울 성동구 왕십리로 321, 1층(행당동)"},
+    {num: 27, name: "다원대리점 왕십리점", address: "서울 성동구 왕십리로 323, 1층(행당동)"},
+    {num: 28, name: "동진대리점 상왕십리역점", address: "서울 성동구 왕십리로 368, 1층(하왕십리동)"},
+    {num: 29, name: "PS&M (화곡역점)", address: "서울 강서구 화곡로 161 (화곡동) 1층"},
+    {num: 30, name: "동진대리점 화곡역본점", address: "서울 강서구 화곡로 162, KBH빌딩 1층"},
+    {num: 31, name: "동진대리점 가양역 본점", address: "서울 강서구 화곡로68길 3, 1층 107호(등촌동)"},
+    {num: 32, name: "PS&M (등촌역점)", address: "서울 양천구 공항대로 564 (목동) 1층 제1호"},
+    {num: 33, name: "강서대리점 신월본점", address: "서울 양천구 남부순환로 354, 1층 (신월동)"},
+    {num: 34, name: "참스타대리점 신월점", address: "서울 양천구 남부순환로 585, 101호(신월동)"},
+    {num: 35, name: "동진대리점 신월점", address: "서울 양천구 남부순환로 571, 1층(신월동)"},
+    {num: 36, name: "PS&M (신정네거리역점)", address: "서울 양천구 중앙로 250 (신정동) 1층"},
+    {num: 37, name: "강서대리점 신정점", address: "서울 양천구 신정로 312, 1층(신정동)"},
+    {num: 38, name: "참스타대리점 신정본점", address: "서울 양천구 중앙로 225, 1층(신정동)"},
+    {num: 39, name: "동진대리점 목동역점", address: "서울 양천구 오목로 230, 1층(신정동)"},
+    {num: 40, name: "PS&M (목동역점)", address: "서울 양천구 오목로 231 (목동) 1층"},
+    {num: 41, name: "PS&M (오목교역점)", address: "서울 양천구 오목로 331 (목동) 1층"}
 ];
 
-/* 완료율 */
-function updateStatus(){
-  let v=0;
-  locations.forEach(l=>{
-    if(localStorage.getItem(`visited_${l.no}`)==="true") v++;
-  });
-  document.getElementById("percentText").innerText =
-    Math.round(v/TOTAL_COUNT*100)+"%";
-  document.getElementById("countText").innerText =
-    `${v} / ${TOTAL_COUNT} 완료`;
-}
-
-/* 마커 */
-locations.forEach(l=>{
-  const visited = localStorage.getItem(`visited_${l.no}`)==="true";
-  const comment = localStorage.getItem(`comment_${l.no}`)||"";
-
-  const m = L.marker([l.lat,l.lng],{
-    icon:numberIcon(l.no,visited)
-  }).addTo(markers);
-
-  storeMarkers[l.no]=m;
-
-  m.bindPopup(`
-    <b>${l.no}. ${l.name}</b><br>${l.addr}<br><br>
-    <button class="popup-btn btn-visit" onclick="markVisited(${l.no})">방문 완료</button>
-    <button class="popup-btn btn-unvisit" onclick="markUnvisited(${l.no})">방문 취소</button>
-    <div style="margin-top:8px;">
-      <b>코멘트</b>
-      <textarea maxlength="300" id="comment_${l.no}"
-        oninput="updateChar(${l.no},this)">${comment}</textarea>
-      <div class="char-count" id="count_${l.no}">${comment.length} / 300</div>
-      <button class="popup-btn btn-visit" onclick="saveComment(${l.no})">코멘트 저장</button>
-    </div>
-  `);
+// 2. 지도 초기화
+const map = new naver.maps.Map('map', {
+    center: new naver.maps.LatLng(37.545, 126.96), // 서울 중심
+    zoom: 12
 });
 
-/* 방문/코멘트 */
-function markVisited(no){
-  localStorage.setItem(`visited_${no}`,"true");
-  updateMarker(no); updateStatus();
-}
-function markUnvisited(no){
-  localStorage.removeItem(`visited_${no}`);
-  updateMarker(no); updateStatus();
-}
-function updateMarker(no){
-  const v = localStorage.getItem(`visited_${no}`)==="true";
-  storeMarkers[no].setIcon(numberIcon(no,v));
-}
-function saveComment(no){
-  localStorage.setItem(`comment_${no}`,
-    document.getElementById(`comment_${no}`).value);
-  alert("코멘트 저장됨");
-}
-function updateChar(no,el){
-  document.getElementById(`count_${no}`).innerText =
-    `${el.value.length} / 300`;
-}
+let loadedCount = 0;
 
-/* CSV */
-function exportCSV(){
-  let csv="번호,매장명,주소,방문여부,코멘트\n";
-  locations.forEach(l=>{
-    const v = localStorage.getItem(`visited_${l.no}`)==="true"?"방문":"미방문";
-    const c = (localStorage.getItem(`comment_${l.no}`)||"").replace(/"/g,'""');
-    csv+=`${l.no},"${l.name}","${l.addr}",${v},"${c}"\n`;
-  });
-  const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download="대리점_방문결과.csv";
-  a.click();
-}
+// 3. 주소 -> 좌표 변환 및 마커 생성
+stores.forEach((store) => {
+    naver.maps.Service.geocode({ query: store.address }, function(status, response) {
+        if (status === naver.maps.Service.Status.OK) {
+            const result = response.v2.addresses[0];
+            const point = new naver.maps.Point(result.x, result.y);
 
-updateStatus();
-map.fitBounds(markers.getBounds().pad(0.15));
+            // 마커 생성
+            const marker = new naver.maps.Marker({
+                position: point,
+                map: map
+            });
+
+            // 이름표(라벨) 생성
+            const contentString = `<div class="label-container">${store.num}. ${store.name}</div>`;
+            new naver.maps.CustomOverlay({
+                position: point,
+                content: contentString,
+                map: map,
+                yAnchor: 2.5
+            });
+
+            // 클릭 정보창
+            const infowindow = new naver.maps.InfoWindow({
+                content: `<div style="padding:10px; line-height:1.5;"><strong>${store.name}</strong><br>${store.address}</div>`
+            });
+
+            naver.maps.Event.addListener(marker, "click", function() {
+                if (infowindow.getMap()) infowindow.close();
+                else infowindow.open(map, marker);
+            });
+        }
+        
+        loadedCount++;
+        if(loadedCount === stores.length) {
+            document.getElementById('loading').style.display = 'none';
+        }
+    });
+});
 </script>
 </body>
 </html>
-
