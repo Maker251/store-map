@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
     <title>NCSI 대리점 정밀 지도</title>
-    <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=eO6ciftMxvfb36vOVMQxXCPykYtXMP46GKOKzSEP&submodules=geocoder"></script>
+    <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=k8vacdhpym&submodules=geocoder"></script>
     <style>
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Malgun Gothic', sans-serif; }
         #map { width: 100%; height: 100%; }
@@ -29,7 +29,7 @@
     </style>
 </head>
 <body>
-<div id="loading" class="loading-bar">지도를 불러오고 주소를 변환 중입니다...</div>
+<div id="loading" class="loading-bar">네이버 지도를 불러오고 주소를 변환 중입니다...</div>
 <div id="map"></div>
 
 <script>
@@ -40,16 +40,16 @@ const stores = [
     {num: 3, name: "광장대리점 중곡점", address: "서울 광진구 면목로 160, 1동 1호"},
     {num: 4, name: "울림터대리점 본점", address: "서울 광진구 아차산로 220, 1층 (자양동,송천빌딩)"},
     {num: 5, name: "광장대리점 구의점", address: "서울 광진구 아차산로 415 (구의동,장안빌딩)"},
-    {num: 6, name: "PS&M (강변역점)", address: "서울 광진구 광나루로56길 85 (구의동,테크노마트) 1층 C-25호"},
-    {num: 7, name: "PS&M (강변역 2호점)", address: "서울 광진구 광나루로56길 85 (구의동,테크노마트) 지하 1층 D-36호"},
+    {num: 6, name: "PS&M (강변역점)", address: "서울 광진구 광나루로56길 85 (구의동,테크노마트)"},
+    {num: 7, name: "PS&M (강변역 2호점)", address: "서울 광진구 광나루로56길 85 (구의동,테크노마트) 지하 1층"},
     {num: 8, name: "광장대리점 광장점", address: "서울 광진구 광나루로 590, 1층(구의동)"},
     {num: 9, name: "다원대리점 구의본점", address: "서울 광진구 자양로 116, 1층(구의동)"},
     {num: 10, name: "광장대리점 자양점", address: "서울 광진구 자양로 50, 1층(자양동)"},
-    {num: 11, name: "PS&M (건대입구역점)", address: "서울 광진구 아차산로 229 (화양동) 한림타워 1층"},
+    {num: 11, name: "PS&M (건대입구역점)", address: "서울 광진구 아차산로 229 (화양동)"},
     {num: 12, name: "동진대리점 화양점", address: "서울 광진구 아차산로 201, 1층(화양동)"},
     {num: 13, name: "성진대리점 건대점", address: "서울 광진구 동일로20길 113, 1층 101호(화양동)"},
     {num: 14, name: "다원대리점 건대점", address: "서울 광진구 능동로 135-1, 1층(화양동)"},
-    {num: 15, name: "PS&M (군자역점)", address: "서울 광진구 천호대로 549 (중곡동) G-TOWER 1층"},
+    {num: 15, name: "PS&M (군자역점)", address: "서울 광진구 천호대로 549 (중곡동)"},
     {num: 16, name: "동진대리점 중곡역점", address: "서울 광진구 능동로 394, 1층(중곡동)"},
     {num: 17, name: "참스타대리점 중곡본점", address: "서울 광진구 능동로 346, 1층(중곡동)"},
     {num: 18, name: "다원대리점 중곡본점", address: "서울 광진구 면목로 151, 1층(중곡동)"},
@@ -63,10 +63,10 @@ const stores = [
     {num: 26, name: "동진대리점 왕십리역점", address: "서울 성동구 왕십리로 321, 1층(행당동)"},
     {num: 27, name: "다원대리점 왕십리점", address: "서울 성동구 왕십리로 323, 1층(행당동)"},
     {num: 28, name: "동진대리점 상왕십리역점", address: "서울 성동구 왕십리로 368, 1층(하왕십리동)"},
-    {num: 29, name: "PS&M (화곡역점)", address: "서울 강서구 화곡로 161 (화곡동) 1층"},
+    {num: 29, name: "PS&M (화곡역점)", address: "서울 강서구 화곡로 161 (화곡동)"},
     {num: 30, name: "동진대리점 화곡역본점", address: "서울 강서구 화곡로 162, KBH빌딩 1층"},
     {num: 31, name: "동진대리점 가양역 본점", address: "서울 강서구 화곡로68길 3, 1층 107호(등촌동)"},
-    {num: 32, name: "PS&M (등촌역점)", address: "서울 양천구 공항대로 564 (목동) 1층 제1호"},
+    {num: 32, name: "PS&M (등촌역점)", address: "서울 양천구 공항대로 564 (목동) 1층"},
     {num: 33, name: "강서대리점 신월본점", address: "서울 양천구 남부순환로 354, 1층 (신월동)"},
     {num: 34, name: "참스타대리점 신월점", address: "서울 양천구 남부순환로 585, 101호(신월동)"},
     {num: 35, name: "동진대리점 신월점", address: "서울 양천구 남부순환로 571, 1층(신월동)"},
@@ -80,7 +80,7 @@ const stores = [
 
 // 2. 지도 초기화
 const map = new naver.maps.Map('map', {
-    center: new naver.maps.LatLng(37.545, 126.96), // 서울 중심
+    center: new naver.maps.LatLng(37.545, 126.96), 
     zoom: 12
 });
 
@@ -93,13 +93,11 @@ stores.forEach((store) => {
             const result = response.v2.addresses[0];
             const point = new naver.maps.Point(result.x, result.y);
 
-            // 마커 생성
             const marker = new naver.maps.Marker({
                 position: point,
                 map: map
             });
 
-            // 이름표(라벨) 생성
             const contentString = `<div class="label-container">${store.num}. ${store.name}</div>`;
             new naver.maps.CustomOverlay({
                 position: point,
@@ -108,7 +106,6 @@ stores.forEach((store) => {
                 yAnchor: 2.5
             });
 
-            // 클릭 정보창
             const infowindow = new naver.maps.InfoWindow({
                 content: `<div style="padding:10px; line-height:1.5;"><strong>${store.name}</strong><br>${store.address}</div>`
             });
@@ -121,7 +118,9 @@ stores.forEach((store) => {
         
         loadedCount++;
         if(loadedCount === stores.length) {
-            document.getElementById('loading').style.display = 'none';
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+            }, 1000);
         }
     });
 });
