@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>SK 대리점 지도 (방문 관리)</title>
+  <title>대리점 방문 지도 (완료율)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -12,17 +12,27 @@
       height: 100%;
       margin: 0;
     }
-    .legend {
+
+    /* 좌상단 패널 */
+    .status-box {
       position: absolute;
       top: 10px;
       left: 10px;
       background: white;
-      padding: 8px 12px;
-      border-radius: 6px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-      font-size: 13px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+      font-size: 14px;
       z-index: 1000;
+      line-height: 1.5;
     }
+
+    .status-box .percent {
+      font-size: 20px;
+      font-weight: bold;
+      color: #1976d2;
+    }
+
     .popup-btn {
       padding: 6px 10px;
       border: none;
@@ -44,26 +54,33 @@
 
 <body>
   <div id="map"></div>
-  <div class="legend">🔴 미방문 / 🔵 방문 완료</div>
+
+  <!-- 완료율 표시 -->
+  <div class="status-box" id="statusBox">
+    <div>📍 방문 완료율</div>
+    <div class="percent" id="percentText">0%</div>
+    <div id="countText">0 / 41 완료</div>
+  </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script>
     /**********************
-     * 1. 지도 생성
+     * 1. 기본 설정
      **********************/
-    const map = L.map("map").setView([37.56, 126.98], 11);
+    const TOTAL_COUNT = 41;
 
+    const map = L.map("map").setView([37.56, 126.98], 11);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution: "&copy; OpenStreetMap contributors"
     }).addTo(map);
 
     const markers = L.featureGroup().addTo(map);
-    const storeMarkers = {}; // 마커 참조 저장
+    const storeMarkers = {};
 
     /**********************
-     * 2. 번호 아이콘 (방문 여부 반영)
+     * 2. 번호 아이콘
      **********************/
     function numberIcon(no, visited) {
       const color = visited ? "#1976d2" : "#d32f2f"; // 파랑 / 빨강
@@ -93,7 +110,7 @@
      * 3. 위치 데이터 (41개)
      **********************/
     const locations = [
-      {no:1, name:"울림터대리점 군자역점", lat:37.5569, lng:127.0786, addr:"서울 광진구 군자동 477-19번지"},
+      {no:1, name:"울림터대리점 군자역점", lat:37.5569, lng:127.0786, addr:"서울 광진구 군자동 477-19"},
       {no:2, name:"다원대리점 중곡직영점", lat:37.5608, lng:127.0832, addr:"서울 광진구 긴고랑로 115"},
       {no:3, name:"광장대리점 중곡점", lat:37.5652, lng:127.0815, addr:"서울 광진구 면목로 160"},
       {no:4, name:"울림터대리점 본점", lat:37.5409, lng:127.0714, addr:"서울 광진구 아차산로 220"},
@@ -137,7 +154,25 @@
     ];
 
     /**********************
-     * 4. 마커 생성 + 방문 처리
+     * 4. 완료율 계산 & 표시
+     **********************/
+    function updateStatus() {
+      let visitedCount = 0;
+      locations.forEach(({ no }) => {
+        if (localStorage.getItem(`visited_${no}`) === "true") {
+          visitedCount++;
+        }
+      });
+
+      const percent = Math.round((visitedCount / TOTAL_COUNT) * 100);
+
+      document.getElementById("percentText").innerText = `${percent}%`;
+      document.getElementById("countText").innerText =
+        `${visitedCount} / ${TOTAL_COUNT} 완료`;
+    }
+
+    /**********************
+     * 5. 마커 생성
      **********************/
     locations.forEach(({ no, name, lat, lng, addr }) => {
       const visited = localStorage.getItem(`visited_${no}`) === "true";
@@ -151,22 +186,28 @@
       marker.bindPopup(`
         <b>${no}. ${name}</b><br/>
         ${addr}<br/><br/>
-        <button class="popup-btn btn-visit" onclick="markVisited(${no})">방문 완료</button>
-        <button class="popup-btn btn-unvisit" onclick="markUnvisited(${no})">방문 취소</button>
+        <button class="popup-btn btn-visit" onclick="markVisited(${no})">
+          방문 완료
+        </button>
+        <button class="popup-btn btn-unvisit" onclick="markUnvisited(${no})">
+          방문 취소
+        </button>
       `);
     });
 
     /**********************
-     * 5. 방문 상태 변경 함수
+     * 6. 방문 처리 함수
      **********************/
     function markVisited(no) {
       localStorage.setItem(`visited_${no}`, "true");
       updateMarker(no);
+      updateStatus();
     }
 
     function markUnvisited(no) {
       localStorage.removeItem(`visited_${no}`);
       updateMarker(no);
+      updateStatus();
     }
 
     function updateMarker(no) {
@@ -176,11 +217,10 @@
     }
 
     /**********************
-     * 6. 전체 영역 맞추기
+     * 7. 초기 상태 반영
      **********************/
-    if (markers.getLayers().length > 0) {
-      map.fitBounds(markers.getBounds().pad(0.15));
-    }
+    updateStatus();
+    map.fitBounds(markers.getBounds().pad(0.15));
   </script>
 </body>
 </html>
