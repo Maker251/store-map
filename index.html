@@ -8,271 +8,207 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
   <style>
-    html, body, #map {
-      height: 100%;
-      margin: 0;
-    }
+    html, body, #map { height:100%; margin:0; }
 
-    /* 좌상단 상태 박스 */
     .status-box {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: white;
-      padding: 10px 14px;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.18);
-      font-size: 14px;
-      z-index: 1000;
-      line-height: 1.5;
+      position:absolute; top:10px; left:10px;
+      background:#fff; padding:10px 14px;
+      border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,.18);
+      font-size:14px; z-index:1000;
     }
-
     .status-box .percent {
-      font-size: 20px;
-      font-weight: bold;
-      color: #1976d2;
+      font-size:20px; font-weight:bold; color:#1976d2;
     }
 
-    /* 우상단 CSV 버튼 */
     .export-box {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      z-index: 1000;
+      position:absolute; top:10px; right:10px; z-index:1000;
     }
-
     .export-box button {
-      padding: 8px 12px;
-      background: #1976d2;
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 13px;
+      padding:8px 12px; border:none; border-radius:6px;
+      background:#1976d2; color:#fff; cursor:pointer;
     }
 
     .popup-btn {
-      padding: 6px 10px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 13px;
-      margin-right: 4px;
+      padding:6px 10px; border:none; border-radius:4px;
+      font-size:13px; cursor:pointer; margin-right:4px;
     }
-
-    .btn-visit {
-      background: #1976d2;
-      color: #fff;
-    }
-
-    .btn-unvisit {
-      background: #999;
-      color: #fff;
-    }
+    .btn-visit { background:#1976d2; color:#fff; }
+    .btn-unvisit { background:#999; color:#fff; }
 
     textarea {
-      width: 100%;
-      height: 70px;
-      resize: none;
-      margin-top: 6px;
-      font-size: 12px;
+      width:100%; height:70px; resize:none;
+      font-size:12px; margin-top:6px;
     }
-
     .char-count {
-      font-size: 11px;
-      text-align: right;
-      color: #666;
+      font-size:11px; text-align:right; color:#666;
     }
   </style>
 </head>
 
 <body>
-  <div id="map"></div>
+<div id="map"></div>
 
-  <!-- 완료율 -->
-  <div class="status-box">
-    <div>📍 방문 완료율</div>
-    <div class="percent" id="percentText">0%</div>
-    <div id="countText">0 / 41 완료</div>
-  </div>
+<div class="status-box">
+  <div>📍 방문 완료율</div>
+  <div class="percent" id="percentText">0%</div>
+  <div id="countText">0 / 41 완료</div>
+</div>
 
-  <!-- CSV 다운로드 -->
-  <div class="export-box">
-    <button onclick="exportCSV()">📥 CSV 다운로드</button>
-  </div>
+<div class="export-box">
+  <button onclick="exportCSV()">📥 CSV 다운로드</button>
+</div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const TOTAL_COUNT = 41;
 
-  <script>
-    const TOTAL_COUNT = 41;
+/* 지도 */
+const map = L.map("map").setView([37.56, 126.98], 11);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19
+}).addTo(map);
 
-    /**********************
-     * 지도 설정
-     **********************/
-    const map = L.map("map").setView([37.56, 126.98], 11);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: "&copy; OpenStreetMap contributors"
-    }).addTo(map);
+const markers = L.featureGroup().addTo(map);
+const storeMarkers = {};
 
-    const markers = L.featureGroup().addTo(map);
-    const storeMarkers = {};
+/* 아이콘 */
+function numberIcon(no, visited) {
+  const color = visited ? "#1976d2" : "#d32f2f";
+  return L.divIcon({
+    html:`<div style="
+      width:30px;height:30px;border-radius:50%;
+      background:${color};color:#fff;font-weight:bold;
+      display:flex;align-items:center;justify-content:center;
+      box-shadow:0 2px 6px rgba(0,0,0,.35);">
+      ${no}</div>`,
+    iconSize:[30,30],
+    iconAnchor:[15,30],
+    className:""
+  });
+}
 
-    /**********************
-     * 숫자 아이콘
-     **********************/
-    function numberIcon(no, visited) {
-      const color = visited ? "#1976d2" : "#d32f2f";
-      return L.divIcon({
-        html: `
-          <div style="
-            width:30px;height:30px;
-            background:${color};
-            color:#fff;
-            font-weight:bold;
-            border-radius:50%;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            box-shadow:0 2px 6px rgba(0,0,0,0.35);
-            font-size:14px;
-          ">${no}</div>
-        `,
-        iconSize: [30, 30],
-        iconAnchor: [15, 30],
-        className: ""
-      });
-    }
+/* 1~41 위치 데이터 */
+const locations = [
+  {no:1,name:"울림터대리점 군자역점",lat:37.5569,lng:127.0786,addr:"서울 광진구 군자동 477-19"},
+  {no:2,name:"다원대리점 중곡직영점",lat:37.5608,lng:127.0832,addr:"서울 광진구 긴고랑로 115"},
+  {no:3,name:"광장대리점 중곡점",lat:37.5652,lng:127.0815,addr:"서울 광진구 면목로 160"},
+  {no:4,name:"울림터대리점 본점",lat:37.5409,lng:127.0714,addr:"서울 광진구 아차산로 220"},
+  {no:5,name:"광장대리점 구의점",lat:37.5383,lng:127.0839,addr:"서울 광진구 아차산로 415"},
+  {no:6,name:"울림터대리점 건대이마트점",lat:37.5416,lng:127.0719,addr:"서울 광진구 자양동 227-7"},
+  {no:7,name:"울림터대리점 구의역점",lat:37.5375,lng:127.0856,addr:"서울 광진구 자양로 93"},
+  {no:8,name:"알파대리점 노원직영점",lat:37.6569,lng:127.0635,addr:"서울 노원구 노해로 490"},
+  {no:9,name:"신창대리점 공릉역점",lat:37.6269,lng:127.0727,addr:"서울 노원구 동일로 1077"},
+  {no:10,name:"가능대리점 상계직영점",lat:37.6551,lng:127.0612,addr:"서울 노원구 동일로 1379"},
+  {no:11,name:"PS&M 마들역점",lat:37.6642,lng:127.0576,addr:"서울 노원구 동일로 1538"},
+  {no:12,name:"서울ent대리점 공릉직영점",lat:37.6247,lng:127.0756,addr:"서울 노원구 동일로192길 11"},
+  {no:13,name:"신창대리점 노원역직영점",lat:37.6556,lng:127.0617,addr:"서울 노원구 상계로 75"},
+  {no:14,name:"알파대리점 석계역점",lat:37.6151,lng:127.0658,addr:"서울 노원구 석계로 4"},
+  {no:15,name:"신창대리점 광운대점",lat:37.6233,lng:127.0589,addr:"서울 노원구 석계로 95"},
+  {no:16,name:"ACE대리점 은행사거리점",lat:37.6461,lng:127.0736,addr:"서울 노원구 한글비석로 254"},
+  {no:17,name:"서울ent대리점 상계역점",lat:37.6602,lng:127.0731,addr:"서울 노원구 한글비석로 384"},
+  {no:18,name:"상록수대리점 우장산점",lat:37.5483,lng:126.8364,addr:"서울 강서구 강서로 242"},
+  {no:19,name:"동진대리점 강서중앙점",lat:37.5489,lng:126.8419,addr:"서울 강서구 강서로 279"},
+  {no:20,name:"동진대리점 까치산역 본점",lat:37.5316,lng:126.8462,addr:"서울 강서구 강서로 63"},
+  {no:21,name:"참스타대리점 등촌점",lat:37.5538,lng:126.8612,addr:"서울 강서구 강서로56길 16"},
+  {no:22,name:"신나는 마곡직영점",lat:37.5594,lng:126.8339,addr:"서울 강서구 공항대로 168"},
+  {no:23,name:"강서대리점 염창역점",lat:37.5462,lng:126.8748,addr:"서울 강서구 공항대로 635"},
+  {no:24,name:"동진대리점 마곡본점",lat:37.5619,lng:126.8275,addr:"서울 강서구 마곡동 727-1271"},
+  {no:25,name:"동진대리점 마곡나루점",lat:37.5661,lng:126.8284,addr:"서울 강서구 마곡중앙로 161-17"},
+  {no:26,name:"참스타대리점 블루나인점",lat:37.5457,lng:126.8829,addr:"서울 강서구 양천로 583"},
+  {no:27,name:"큰사랑대리점 방화직영점",lat:37.5731,lng:126.8174,addr:"서울 강서구 양천로 73"},
+  {no:28,name:"PS&M 화곡역점",lat:37.5411,lng:126.8406,addr:"서울 강서구 화곡로 161"},
+  {no:29,name:"세하대리점 화곡역본점",lat:37.5419,lng:126.8401,addr:"서울 강서구 화곡로 190"},
+  {no:30,name:"동진대리점 화곡직영점",lat:37.5358,lng:126.8413,addr:"서울 강서구 화곡로25길 2"},
+  {no:31,name:"동진대리점 가양역 본점",lat:37.5613,lng:126.8542,addr:"서울 강서구 화곡로68길 3"},
+  {no:32,name:"PS&M 등촌역점",lat:37.5512,lng:126.8643,addr:"서울 양천구 공항대로 564"},
+  {no:33,name:"강서대리점 신월본점",lat:37.5219,lng:126.8427,addr:"서울 양천구 남부순환로 354"},
+  {no:34,name:"참스타대리점 신월점",lat:37.5228,lng:126.8456,addr:"서울 양천구 남부순환로 585"},
+  {no:35,name:"유원대리점 목동41타워점",lat:37.5264,lng:126.8752,addr:"서울 양천구 목동동로 293"},
+  {no:36,name:"한유대리점 목동광장직영점",lat:37.5293,lng:126.8758,addr:"서울 양천구 목동동로 379"},
+  {no:37,name:"새서울대리점 신정직영점",lat:37.5234,lng:126.8741,addr:"서울 양천구 목동동로 53"},
+  {no:38,name:"유원대리점 목동본점",lat:37.5299,lng:126.8721,addr:"서울 양천구 목동서로 63"},
+  {no:39,name:"MD대리점 염창동직영점",lat:37.5507,lng:126.8729,addr:"서울 양천구 목동중앙본로 126"},
+  {no:40,name:"세하대리점 등촌깨비시장점",lat:37.5531,lng:126.8678,addr:"서울 양천구 목동중앙북로 29"},
+  {no:41,name:"세하 신정본점",lat:37.5212,lng:126.8734,addr:"서울 양천구 중앙로 267"}
+];
 
-    /**********************
-     * 위치 데이터 (41개)
-     **********************/
-    const locations = [
-      {no:1, name:"울림터대리점 군자역점", lat:37.5569, lng:127.0786, addr:"서울 광진구 군자동 477-19"},
-      {no:2, name:"다원대리점 중곡직영점", lat:37.5608, lng:127.0832, addr:"서울 광진구 긴고랑로 115"},
-      {no:3, name:"광장대리점 중곡점", lat:37.5652, lng:127.0815, addr:"서울 광진구 면목로 160"},
-      // … (중간 동일, 이전 코드와 동일)
-      {no:41, name:"세하 신정본점", lat:37.5212, lng:126.8734, addr:"서울 양천구 중앙로 267"}
-    ];
+/* 완료율 */
+function updateStatus(){
+  let v=0;
+  locations.forEach(l=>{
+    if(localStorage.getItem(`visited_${l.no}`)==="true") v++;
+  });
+  document.getElementById("percentText").innerText =
+    Math.round(v/TOTAL_COUNT*100)+"%";
+  document.getElementById("countText").innerText =
+    `${v} / ${TOTAL_COUNT} 완료`;
+}
 
-    /**********************
-     * 상태 업데이트
-     **********************/
-    function updateStatus() {
-      let visitedCount = 0;
-      locations.forEach(({ no }) => {
-        if (localStorage.getItem(`visited_${no}`) === "true") {
-          visitedCount++;
-        }
-      });
+/* 마커 */
+locations.forEach(l=>{
+  const visited = localStorage.getItem(`visited_${l.no}`)==="true";
+  const comment = localStorage.getItem(`comment_${l.no}`)||"";
 
-      const percent = Math.round((visitedCount / TOTAL_COUNT) * 100);
-      document.getElementById("percentText").innerText = `${percent}%`;
-      document.getElementById("countText").innerText =
-        `${visitedCount} / ${TOTAL_COUNT} 완료`;
-    }
+  const m = L.marker([l.lat,l.lng],{
+    icon:numberIcon(l.no,visited)
+  }).addTo(markers);
 
-    /**********************
-     * 마커 생성
-     **********************/
-    locations.forEach(({ no, name, lat, lng, addr }) => {
-      const visited = localStorage.getItem(`visited_${no}`) === "true";
-      const comment = localStorage.getItem(`comment_${no}`) || "";
+  storeMarkers[l.no]=m;
 
-      const marker = L.marker([lat, lng], {
-        icon: numberIcon(no, visited)
-      }).addTo(markers);
+  m.bindPopup(`
+    <b>${l.no}. ${l.name}</b><br>${l.addr}<br><br>
+    <button class="popup-btn btn-visit" onclick="markVisited(${l.no})">방문 완료</button>
+    <button class="popup-btn btn-unvisit" onclick="markUnvisited(${l.no})">방문 취소</button>
+    <div style="margin-top:8px;">
+      <b>코멘트</b>
+      <textarea maxlength="300" id="comment_${l.no}"
+        oninput="updateChar(${l.no},this)">${comment}</textarea>
+      <div class="char-count" id="count_${l.no}">${comment.length} / 300</div>
+      <button class="popup-btn btn-visit" onclick="saveComment(${l.no})">코멘트 저장</button>
+    </div>
+  `);
+});
 
-      storeMarkers[no] = marker;
+/* 방문/코멘트 */
+function markVisited(no){
+  localStorage.setItem(`visited_${no}`,"true");
+  updateMarker(no); updateStatus();
+}
+function markUnvisited(no){
+  localStorage.removeItem(`visited_${no}`);
+  updateMarker(no); updateStatus();
+}
+function updateMarker(no){
+  const v = localStorage.getItem(`visited_${no}`)==="true";
+  storeMarkers[no].setIcon(numberIcon(no,v));
+}
+function saveComment(no){
+  localStorage.setItem(`comment_${no}`,
+    document.getElementById(`comment_${no}`).value);
+  alert("코멘트 저장됨");
+}
+function updateChar(no,el){
+  document.getElementById(`count_${no}`).innerText =
+    `${el.value.length} / 300`;
+}
 
-      marker.bindPopup(`
-        <b>${no}. ${name}</b><br/>
-        ${addr}<br/><br/>
+/* CSV */
+function exportCSV(){
+  let csv="번호,매장명,주소,방문여부,코멘트\n";
+  locations.forEach(l=>{
+    const v = localStorage.getItem(`visited_${l.no}`)==="true"?"방문":"미방문";
+    const c = (localStorage.getItem(`comment_${l.no}`)||"").replace(/"/g,'""');
+    csv+=`${l.no},"${l.name}","${l.addr}",${v},"${c}"\n`;
+  });
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="대리점_방문결과.csv";
+  a.click();
+}
 
-        <button class="popup-btn btn-visit" onclick="markVisited(${no})">방문 완료</button>
-        <button class="popup-btn btn-unvisit" onclick="markUnvisited(${no})">방문 취소</button>
-
-        <div style="margin-top:8px;">
-          <b>코멘트</b>
-          <textarea maxlength="300"
-            oninput="updateCharCount(${no}, this)"
-            id="comment_${no}">${comment}</textarea>
-          <div class="char-count" id="count_${no}">
-            ${comment.length} / 300
-          </div>
-          <button class="popup-btn btn-visit"
-            onclick="saveComment(${no})">코멘트 저장</button>
-        </div>
-      `);
-    });
-
-    /**********************
-     * 방문 처리
-     **********************/
-    function markVisited(no) {
-      localStorage.setItem(`visited_${no}`, "true");
-      updateMarker(no);
-      updateStatus();
-    }
-
-    function markUnvisited(no) {
-      localStorage.removeItem(`visited_${no}`);
-      updateMarker(no);
-      updateStatus();
-    }
-
-    function updateMarker(no) {
-      const marker = storeMarkers[no];
-      const visited = localStorage.getItem(`visited_${no}`) === "true";
-      marker.setIcon(numberIcon(no, visited));
-    }
-
-    /**********************
-     * 코멘트 처리
-     **********************/
-    function saveComment(no) {
-      const text = document.getElementById(`comment_${no}`).value;
-      localStorage.setItem(`comment_${no}`, text);
-      alert("코멘트 저장됨");
-    }
-
-    function updateCharCount(no, el) {
-      document.getElementById(`count_${no}`).innerText =
-        `${el.value.length} / 300`;
-    }
-
-    /**********************
-     * CSV 다운로드
-     **********************/
-    function exportCSV() {
-      let csv = "번호,매장명,주소,방문여부,코멘트\n";
-
-      locations.forEach(({ no, name, addr }) => {
-        const visited = localStorage.getItem(`visited_${no}`) === "true"
-          ? "방문"
-          : "미방문";
-        const comment = (localStorage.getItem(`comment_${no}`) || "")
-          .replace(/"/g, '""');
-
-        csv += `${no},"${name}","${addr}",${visited},"${comment}"\n`;
-      });
-
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "대리점_방문결과.csv";
-      a.click();
-
-      URL.revokeObjectURL(url);
-    }
-
-    /**********************
-     * 초기 실행
-     **********************/
-    updateStatus();
-    map.fitBounds(markers.getBounds().pad(0.15));
-  </script>
+updateStatus();
+map.fitBounds(markers.getBounds().pad(0.15));
+</script>
 </body>
 </html>
