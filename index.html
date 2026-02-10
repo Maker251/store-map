@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NCSI 대리점 방문 현황 지도</title>
-    <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=k8vacdhpym&submodules=geocoder"></script>
+    <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=k8vacdhpym&submodules=geocoder"></script>
     <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Malgun Gothic', sans-serif; }
-        #map { width: 100vw; height: 100vh; }
+        #map { width: 100vw; height: 100vh; background-color: #eee; }
         
         /* 완료율 대시보드 */
         #dashboard {
@@ -17,9 +17,8 @@
             border: 2px solid #3b5bdb; text-align: center; min-width: 140px;
         }
         #completion-rate { font-size: 28px; font-weight: bold; color: #3b5bdb; }
-        .count-text { font-size: 12px; color: #777; margin-top: 5px; }
 
-        /* 매장 이름표 스타일 */
+        /* 매장 이름표 */
         .store-label {
             padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold;
             box-shadow: 2px 4px 6px rgba(0,0,0,0.1); white-space: nowrap; cursor: pointer;
@@ -28,11 +27,9 @@
         .label-pending { background: #fff; border-color: #ff4d4d; color: #d32f2f; }
         .label-visited { background: #3b5bdb; border-color: #3b5bdb; color: #fff; }
 
-        /* 정보창(팝업) 스타일 */
         .info-window { padding: 15px; min-width: 180px; line-height: 1.5; }
         .btn-group { margin-top: 10px; display: flex; gap: 6px; }
         button { flex: 1; cursor: pointer; padding: 7px; font-size: 12px; border: 1px solid #ddd; border-radius: 5px; background: #fff; }
-        .btn-done { background: #3b5bdb; color: #fff; border: none; }
     </style>
 </head>
 <body>
@@ -40,13 +37,13 @@
 <div id="dashboard">
     <div style="font-size:14px; color:#555; margin-bottom:5px;">방문 완료율</div>
     <div id="completion-rate">0%</div>
-    <div class="count-text">(<span id="visit-count">0</span> / 41)</div>
+    <div style="font-size:12px; color:#777;">(<span id="visit-count">0</span> / 41)</div>
 </div>
 
 <div id="map"></div>
 
 <script>
-// CSV 파일에서 추출한 실제 41개 대리점 정보
+// 업로드하신 CSV 기반 41개 매장 데이터 전체 포함
 const stores = [
     {num: 1, name: "울림터 군자역점", addr: "서울특별시 광진구 능동로 297"},
     {num: 2, name: "다원 중곡직영점", addr: "서울 광진구 긴고랑로 115"},
@@ -58,7 +55,7 @@ const stores = [
     {num: 8, name: "알파 노원직영점", addr: "서울 노원구 노해로 490"},
     {num: 9, name: "신창 공릉역점", addr: "서울 노원구 동일로 1077"},
     {num: 10, name: "가능 상계직영점", addr: "서울 노원구 동일로 1379"},
-    {num: 11, name: "PS&M 마들역점", addr: "서울 노원구 동일로 1538"},
+    {num: 11, name: "PS&M (마들역점)", addr: "서울 노원구 동일로 1538"},
     {num: 12, name: "서울ent 공릉직영점", addr: "서울 노원구 동일로192길 11"},
     {num: 13, name: "신창 노원역직영점", addr: "서울 노원구 상계로 75"},
     {num: 14, name: "알파 석계역점", addr: "서울 노원구 석계로 4"},
@@ -91,6 +88,13 @@ const stores = [
     {num: 41, name: "세하 신정본점", addr: "서울 양천구 중앙로 267"}
 ];
 
+// 지도가 로드되지 않았을 때를 대비한 안전 체크 함수
+function checkMapLoad() {
+    if (typeof naver === 'undefined' || !naver.maps) {
+        alert("네이버 지도 SDK 로드에 실패했습니다. Client ID와 서비스 URL 설정을 확인해주세요.");
+    }
+}
+
 naver.maps.onJSContentLoaded = function() {
     const map = new naver.maps.Map("map", {
         center: new naver.maps.LatLng(37.5665, 126.9780),
@@ -100,7 +104,6 @@ naver.maps.onJSContentLoaded = function() {
     const infoWindow = new naver.maps.InfoWindow({ anchorSkew: true });
     const bounds = new naver.maps.LatLngBounds();
 
-    // 방문 데이터 로드 및 대시보드 업데이트
     function updateStats() {
         let visited = 0;
         stores.forEach(s => {
@@ -113,7 +116,6 @@ naver.maps.onJSContentLoaded = function() {
         document.getElementById('visit-count').innerText = visited;
     }
 
-    // 주소를 좌표로 변환하여 지도에 마커 표시
     stores.forEach((store) => {
         naver.maps.Service.geocode({ query: store.addr }, function(status, response) {
             if (status === naver.maps.Service.Status.OK) {
@@ -137,12 +139,28 @@ naver.maps.onJSContentLoaded = function() {
         });
     });
 
-    // 팝업 메뉴 열기
     window.openMenu = function(num, name, addr, lat, lng) {
         const content = `
             <div class="info-window">
                 <strong>${num}. ${name}</strong>
                 <div style="font-size:11px; color:#666; margin-bottom:10px;">${addr}</div>
                 <div class="btn-group">
-                    <button class="btn-done" onclick="saveStatus(${num}, '방문')">방문 완료</button>
-                    <button onclick="save
+                    <button style="background:#3b5bdb; color:white; border:none;" onclick="saveStatus(${num}, '방문')">방문 완료</button>
+                    <button onclick="saveStatus(${num}, '미방문')">미방문</button>
+                </div>
+            </div>`;
+        infoWindow.setContent(content);
+        infoWindow.open(map, new naver.maps.LatLng(lat, lng));
+    };
+
+    window.saveStatus = function(num, status) {
+        localStorage.setItem(`visit_${num}`, status);
+        updateStats();
+        infoWindow.close();
+    };
+};
+
+setTimeout(checkMapLoad, 3000); // 3초 후 로드 체크
+</script>
+</body>
+</html>
