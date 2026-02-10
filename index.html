@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NCSI 대리점 실시간 방문 지도</title>
+    <title>NCSI 대리점 방문 현황 지도</title>
     <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=k8vacdhpym"></script>
     <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Malgun Gothic', sans-serif; }
@@ -39,50 +39,8 @@
 <div id="map"></div>
 
 <script>
-// 41개 지점의 좌표를 직접 포함 (주소 검색 오류 방지)
-const stores = [
-    {num:1, name:"울림터 군자역점", lat:37.5574, lng:127.0796},
-    {num:2, name:"다원 중곡직영점", lat:37.5683, lng:127.0864},
-    {num:3, name:"광장 중곡점", lat:37.5615, lng:127.0838},
-    {num:4, name:"울림터 본점", lat:37.5411, lng:127.0679},
-    {num:5, name:"광장 구의점", lat:37.5452, lng:127.0863},
-    {num:6, name:"울림터 건대이마트점", lat:37.5385, lng:127.0732},
-    {num:7, name:"울림터 구의역점", lat:37.5372, lng:127.0850},
-    {num:8, name:"알파 노원직영점", lat:37.6544, lng:127.0606},
-    {num:9, name:"신창 공릉역점", lat:37.6258, lng:127.0728},
-    {num:10, name:"가능 상계직영점", lat:37.6603, lng:127.0624},
-    {num:11, name:"PS&M 마들역점", lat:37.6631, lng:127.0578},
-    {num:12, name:"서울ent 공릉직영점", lat:37.6251, lng:127.0740},
-    {num:13, name:"신창 노원역직영점", lat:37.6562, lng:127.0632},
-    {num:14, name:"알파 석계역점", lat:37.6151, lng:127.0654},
-    {num:15, name:"신창 광운대점", lat:37.6191, lng:127.0617},
-    {num:16, name:"ACE 은행사거리점", lat:37.6483, lng:127.0765},
-    {num:17, name:"서울ent 상계역점", lat:37.6611, lng:127.0735},
-    {num:18, name:"상록수 우장산점", lat:37.5478, lng:126.8361},
-    {num:19, name:"동진 강서중앙점", lat:37.5505, lng:126.8400},
-    {num:20, name:"동진 까치산역점", lat:37.5318, lng:126.8466},
-    {num:21, name:"참스타 등촌점", lat:37.5588, lng:126.8533},
-    {num:22, name:"신나는 마곡직영점", lat:37.5592, lng:126.8252},
-    {num:23, name:"강서 염창역점", lat:37.5469, lng:126.8749},
-    {num:24, name:"동진 마곡본점", lat:37.5601, lng:126.8390},
-    {num:25, name:"동진 마곡나루점", lat:37.5673, lng:126.8258},
-    {num:26, name:"참스타 블루나인점", lat:37.5544, lng:126.8643},
-    {num:27, name:"큰사랑 방화직영점", lat:37.5670, lng:126.8123},
-    {num:28, name:"PS&M 화곡역점", lat:37.5414, lng:126.8404},
-    {num:29, name:"세하 화곡역본점", lat:37.5410, lng:126.8415},
-    {num:30, name:"동진 화곡직영점", lat:37.5371, lng:126.8475},
-    {num:31, name:"동진 가양역점", lat:37.5595, lng:126.8624},
-    {num:32, name:"PS&M 등촌역점", lat:37.5506, lng:126.8654},
-    {num:33, name:"강서 신월본점", lat:37.5252, lng:126.8331},
-    {num:34, name:"참스타 신월점", lat:37.5201, lng:126.8354},
-    {num:35, name:"유원 목동41타워점", lat:37.5298, lng:126.8748},
-    {num:36, name:"한유 목동광장점", lat:37.5358, lng:126.8778},
-    {num:37, name:"새서울 신정직영점", lat:37.5188, lng:126.8711},
-    {num:38, name:"유원 목동본점", lat:37.5273, lng:126.8722},
-    {num:39, name:"MD 염창동직영점", lat:37.5461, lng:126.8721},
-    {num:40, name:"세하 등촌깨비시장점", lat:37.5472, lng:126.8682},
-    {num:41, name:"세하 신정본점", lat:37.5143, lng:126.8545}
-];
+// 41개 지점 데이터 (좌표값 포함)
+const stores = [{"num": 1, "name": "울림터대리점 군자역점", "lat": 37.5574, "lng": 127.0796}, {"num": 2, "name": "다원대리점 중곡직영점", "lat": 37.5683, "lng": 127.0864}, {"num": 3, "name": "광장대리점 중곡점", "lat": 37.5615, "lng": 127.0838}, {"num": 4, "name": "울림터대리점 본점", "lat": 37.5411, "lng": 127.0679}, {"num": 5, "name": "광장대리점 구의점", "lat": 37.5452, "lng": 127.0863}, {"num": 6, "name": "울림터대리점 건대이마트점", "lat": 37.5385, "lng": 127.0732}, {"num": 7, "name": "울림터대리점 구의역점", "lat": 37.5372, "lng": 127.0850}, {"num": 8, "name": "알파대리점 노원직영점", "lat": 37.6544, "lng": 127.0606}, {"num": 9, "name": "신창대리점 공릉역점", "lat": 37.6258, "lng": 127.0728}, {"num": 10, "name": "가능대리점 상계직영점", "lat": 37.6603, "lng": 127.0624}, {"num": 11, "name": "PS&M (마들역점)", "lat": 37.6631, "lng": 127.0578}, {"num": 12, "name": "서울ent대리점 공릉직영점", "lat": 37.6251, "lng": 127.0740}, {"num": 13, "name": "신창대리점 노원역직영점", "lat": 37.6562, "lng": 127.0632}, {"num": 14, "name": "알파대리점 석계역점", "lat": 37.6151, "lng": 127.0654}, {"num": 15, "name": "신창대리점 광운대점", "lat": 37.6191, "lng": 127.0617}, {"num": 16, "name": "ACE대리점 은행사거리점", "lat": 37.6483, "lng": 127.0765}, {"num": 17, "name": "서울ent대리점 상계역점", "lat": 37.6611, "lng": 127.0735}, {"num": 18, "name": "상록수대리점 우장산점", "lat": 37.5478, "lng": 126.8361}, {"num": 19, "name": "동진대리점 강서중앙점", "lat": 37.5505, "lng": 126.8400}, {"num": 20, "name": "동진대리점 까치산역 본점", "lat": 37.5318, "lng": 126.8466}, {"num": 21, "name": "참스타대리점 등촌점", "lat": 37.5588, "lng": 126.8533}, {"num": 22, "name": "신나는 마곡직영점", "lat": 37.5592, "lng": 126.8252}, {"num": 23, "name": "강서대리점 염창역점", "lat": 37.5469, "lng": 126.8749}, {"num": 24, "name": "동진대리점 마곡본점", "lat": 37.5601, "lng": 126.8390}, {"num": 25, "name": "동진대리점 마곡나루점", "lat": 37.5673, "lng": 126.8258}, {"num": 26, "name": "참스타대리점 블루나인점", "lat": 37.5544, "lng": 126.8643}, {"num": 27, "name": "큰사랑대리점 방화직영점", "lat": 37.5670, "lng": 126.8123}, {"num": 28, "name": "PS&M (화곡역점)", "lat": 37.5414, "lng": 126.8404}, {"num": 29, "name": "세하대리점 화곡역본점", "lat": 37.5410, "lng": 126.8415}, {"num": 30, "name": "동진대리점 화곡직영점", "lat": 37.5371, "lng": 126.8475}, {"num": 31, "name": "동진대리점 가양역 본점", "lat": 37.5595, "lng": 126.8624}, {"num": 32, "highlight": false, "name": "PS&M (등촌역점)", "lat": 37.5506, "lng": 126.8654}, {"num": 33, "name": "강서대리점 신월본점", "lat": 37.5252, "lng": 126.8331}, {"num": 34, "name": "참스타대리점 신월점", "lat": 37.5201, "lng": 126.8354}, {"num": 35, "name": "유원대리점 목동41타워점", "lat": 37.5298, "lng": 126.8748}, {"num": 36, "name": "한유대리점 목동광장직영점", "lat": 37.5358, "lng": 126.8778}, {"num": 37, "name": "새서울대리점 신정직영점", "lat": 37.5188, "lng": 126.8711}, {"num": 38, "name": "유원대리점 목동본점", "lat": 37.5273, "lng": 126.8722}, {"num": 39, "name": "MD대리점 염창동직영점", "lat": 37.5461, "lng": 126.8721}, {"num": 40, "name": "세하대리점 등촌깨비시장점", "lat": 37.5472, "lng": 126.8682}, {"num": 41, "name": "세하 신정본점", "lat": 37.5143, "lng": 126.8545}];
 
 const map = new naver.maps.Map("map", {
     center: new naver.maps.LatLng(37.5665, 126.9780),
@@ -104,6 +62,7 @@ function updateDashboard() {
     document.getElementById('visit-count').innerText = count;
 }
 
+// 지도에 지점 표시
 stores.forEach(s => {
     const point = new naver.maps.LatLng(s.lat, s.lng);
     new naver.maps.CustomOverlay({
@@ -115,7 +74,7 @@ stores.forEach(s => {
     bounds.extend(point);
 });
 
-map.fitBounds(bounds);
+map.fitBounds(bounds); // 41개 지점이 모두 보이도록 자동 줌 조절
 updateDashboard();
 
 window.openPopup = function(num, name, lat, lng) {
