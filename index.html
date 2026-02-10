@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NCSI 대리점 방문 현황 지도</title>
+    <title>NCSI 대리점 방문 현황 지도 (4조)</title>
     <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=k8vacdhpym"></script>
     <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Malgun Gothic', sans-serif; }
@@ -16,8 +16,9 @@
             border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.15);
             border: 2px solid #3b5bdb; text-align: center; min-width: 130px;
         }
+        #dashboard h3 { margin: 0 0 5px 0; font-size: 14px; color: #555; }
         #completion-rate { font-size: 28px; font-weight: bold; color: #3b5bdb; }
-        .count-text { font-size: 12px; color: #777; margin-top: 5px; }
+        .count-text { font-size: 12px; color: #777; margin-top: 4px; }
 
         /* 매장 이름표 (지도 위에 상시 노출) */
         .store-label {
@@ -25,19 +26,26 @@
             box-shadow: 2px 4px 6px rgba(0,0,0,0.1); white-space: nowrap; cursor: pointer;
             border: 2px solid; transition: all 0.2s;
         }
+        /* 미방문 상태 (빨강) */
         .label-pending { background: #fff; border-color: #ff4d4d; color: #d32f2f; }
+        /* 방문 완료 상태 (파랑) */
         .label-visited { background: #3b5bdb; border-color: #3b5bdb; color: #fff; }
 
-        /* 팝업창 스타일 */
+        /* 정보창(팝업) 스타일 */
         .info-window { padding: 15px; min-width: 180px; line-height: 1.5; }
+        .info-window strong { font-size: 14px; display: block; margin-bottom: 5px; }
         .btn-group { margin-top: 10px; display: flex; gap: 6px; }
-        button { flex: 1; cursor: pointer; padding: 7px; font-size: 12px; border: 1px solid #ddd; border-radius: 5px; background: #fff; }
+        button { 
+            flex: 1; cursor: pointer; padding: 7px; font-size: 12px; 
+            border: 1px solid #ddd; border-radius: 5px; background: #fff;
+        }
+        button.btn-done { background: #3b5bdb; color: #fff; border: none; }
     </style>
 </head>
 <body>
 
 <div id="dashboard">
-    <div style="font-size:14px; color:#555; margin-bottom:5px;">방문 완료율</div>
+    <h3>전체 방문 완료율</h3>
     <div id="completion-rate">0%</div>
     <div class="count-text">(<span id="visit-count">0</span> / 41)</div>
 </div>
@@ -45,13 +53,13 @@
 <div id="map"></div>
 
 <script>
-// 업로드하신 CSV 데이터를 바탕으로 좌표(위도, 경도)를 직접 매핑했습니다.
+// 1. 41개 지점 좌표 데이터 (직접 매핑)
 const stores = [
-    {num: 1, name: "울림터대리점 군자역점", lat: 37.5574, lng: 127.0796},
-    {num: 2, name: "다원대리점 중곡직영점", lat: 37.5683, lng: 127.0864},
-    {num: 3, name: "광장대리점 중곡점", lat: 37.5615, lng: 127.0838},
-    {num: 4, name: "울림터대리점 본점", lat: 37.5411, lng: 127.0679},
-    {num: 5, name: "광장대리점 구의점", lat: 37.5452, lng: 127.0863},
+    {num: 1, name: "울림터 군자역점", lat: 37.5574, lng: 127.0796},
+    {num: 2, name: "다원 중곡직영점", lat: 37.5683, lng: 127.0864},
+    {num: 3, name: "광장 중곡점", lat: 37.5615, lng: 127.0838},
+    {num: 4, name: "울림터 본점", lat: 37.5411, lng: 127.0679},
+    {num: 5, name: "광장 구의점", lat: 37.5452, lng: 127.0863},
     {num: 6, name: "울림터 건대이마트점", lat: 37.5385, lng: 127.0732},
     {num: 7, name: "울림터 구의역점", lat: 37.5372, lng: 127.0850},
     {num: 8, name: "알파 노원직영점", lat: 37.6544, lng: 127.0606},
@@ -72,24 +80,25 @@ const stores = [
     {num: 23, name: "강서 염창역점", lat: 37.5469, lng: 126.8749},
     {num: 24, name: "동진 마곡본점", lat: 37.5601, lng: 126.8390},
     {num: 25, name: "동진 마곡나루점", lat: 37.5673, lng: 126.8258},
-    {num: 26, "name": "참스타 블루나인점", lat: 37.5544, lng: 126.8643},
-    {num: 27, "name": "큰사랑 방화직영점", lat: 37.5670, lng: 126.8123},
-    {num: 28, "name": "PS&M 화곡역점", lat: 37.5414, lng: 126.8404},
-    {num: 29, "name": "세하 화곡역본점", lat: 37.5410, lng: 126.8415},
-    {num: 30, "name": "동진 화곡직영점", lat: 37.5371, lng: 126.8475},
-    {num: 31, "name": "동진 가양역 본점", lat: 37.5595, lng: 126.8624},
-    {num: 32, "name": "PS&M 등촌역점", lat: 37.5506, lng: 126.8654},
-    {num: 33, "name": "강서 신월본점", lat: 37.5252, lng: 126.8331},
-    {num: 34, "name": "참스타 신월점", lat: 37.5201, lng: 126.8354},
-    {num: 35, "name": "유원 목동41타워점", lat: 37.5298, lng: 126.8748},
-    {num: 36, "name": "한유 목동광장직영점", lat: 37.5358, lng: 126.8778},
-    {num: 37, "name": "새서울 신정직영점", lat: 37.5188, lng: 126.8711},
-    {num: 38, "name": "유원 목동본점", lat: 37.5273, lng: 126.8722},
-    {num: 39, "name": "MD 염창동직영점", lat: 37.5461, lng: 126.8721},
-    {num: 40, "name": "세하 등촌깨비시장점", lat: 37.5472, lng: 126.8682},
-    {num: 41, "name": "세하 신정본점", lat: 37.5143, lng: 126.8545}
+    {num: 26, name: "참스타 블루나인점", lat: 37.5544, lng: 126.8643},
+    {num: 27, name: "큰사랑 방화직영점", lat: 37.5670, lng: 126.8123},
+    {num: 28, name: "PS&M 화곡역점", lat: 37.5414, lng: 126.8404},
+    {num: 29, name: "세하 화곡역본점", lat: 37.5410, lng: 126.8415},
+    {num: 30, name: "동진 화곡직영점", lat: 37.5371, lng: 126.8475},
+    {num: 31, name: "동진 가양역 본점", lat: 37.5595, lng: 126.8624},
+    {num: 32, name: "PS&M 등촌역점", lat: 37.5506, lng: 126.8654},
+    {num: 33, name: "강서 신월본점", lat: 37.5252, lng: 126.8331},
+    {num: 34, name: "참스타 신월점", lat: 37.5201, lng: 126.8354},
+    {num: 35, name: "유원 목동41타워점", lat: 37.5298, lng: 126.8748},
+    {num: 36, name: "한유 목동광장직영점", lat: 37.5358, lng: 126.8778},
+    {num: 37, name: "새서울 신정직영점", lat: 37.5188, lng: 126.8711},
+    {num: 38, name: "유원 목동본점", lat: 37.5273, lng: 126.8722},
+    {num: 39, name: "MD 염창동직영점", lat: 37.5461, lng: 126.8721},
+    {num: 40, name: "세하 등촌깨비시장점", lat: 37.5472, lng: 126.8682},
+    {num: 41, name: "세하 신정본점", lat: 37.5143, lng: 126.8545}
 ];
 
+// 2. 지도 초기화
 const map = new naver.maps.Map("map", {
     center: new naver.maps.LatLng(37.5665, 126.9780),
     zoom: 11
@@ -98,47 +107,66 @@ const map = new naver.maps.Map("map", {
 const infoWindow = new naver.maps.InfoWindow({ anchorSkew: true });
 const bounds = new naver.maps.LatLngBounds();
 
+// 3. 방문 상태 업데이트 및 통계 계산 함수
 function updateDashboard() {
     let visitedCount = 0;
     stores.forEach(s => {
-        const status = localStorage.getItem(`visit_${s.num}`) || '미방문';
+        // localStorage에서 개별 매장 방문 여부 로드
+        const status = localStorage.getItem(`visit_ncsi_${s.num}`) || '미방문';
         const el = document.getElementById(`label-${s.num}`);
-        if (el) el.className = `store-label ${status === '방문' ? 'label-visited' : 'label-pending'}`;
+        
+        // 시각적 업데이트: 방문 시 파랑, 미방문 시 빨강
+        if (el) {
+            el.className = `store-label ${status === '방문' ? 'label-visited' : 'label-pending'}`;
+        }
         if (status === '방문') visitedCount++;
     });
-    document.getElementById('completion-rate').innerText = Math.round((visitedCount / 41) * 100) + '%';
+
+    // 대시보드 숫자 및 퍼센트 업데이트
+    const rate = Math.round((visitedCount / stores.length) * 100);
+    document.getElementById('completion-rate').innerText = rate + '%';
     document.getElementById('visit-count').innerText = visitedCount;
 }
 
-// 41개 지점을 지도에 그립니다.
+// 4. 지도에 매장 이름표 표시
 stores.forEach(s => {
     const point = new naver.maps.LatLng(s.lat, s.lng);
+    
+    // 커스텀 이름표 생성
     new naver.maps.CustomOverlay({
         position: point,
         map: map,
-        content: `<div id="label-${s.num}" class="store-label label-pending" onclick="openMenu(${s.num}, '${s.name}', ${s.lat}, ${s.lng})">${s.num}. ${s.name}</div>`,
+        content: `<div id="label-${s.num}" class="store-label label-pending" 
+                  onclick="openPopup(${s.num}, '${s.name}', ${s.lat}, ${s.lng})">
+                    ${s.num}. ${s.name}
+                  </div>`,
         yAnchor: 1.5
     });
+
     bounds.extend(point);
 });
 
-map.fitBounds(bounds); // 모든 지점이 보이게 화면 조정
-updateDashboard();
+// 모든 지점이 보이도록 지도 중심 및 줌 자동 조정
+map.fitBounds(bounds);
+updateDashboard(); // 초기 대시보드 상태 로드
 
-window.openMenu = function(num, name, lat, lng) {
-    const content = `<div class="info-window">
-        <strong>${num}. ${name}</strong>
-        <div class="btn-group">
-            <button style="background:#3b5bdb; color:white; border:none;" onclick="saveStatus(${num}, '방문')">방문 완료</button>
-            <button onclick="saveStatus(${num}, '미방문')">미방문</button>
-        </div>
-    </div>`;
+// 5. 방문 여부 선택 팝업창 함수
+window.openPopup = function(num, name, lat, lng) {
+    const content = `
+        <div class="info-window">
+            <strong>${num}. ${name}</strong>
+            <div class="btn-group">
+                <button class="btn-done" onclick="setStatus(${num}, '방문')">방문 완료</button>
+                <button onclick="setStatus(${num}, '미방문')">미방문</button>
+            </div>
+        </div>`;
     infoWindow.setContent(content);
     infoWindow.open(map, new naver.maps.LatLng(lat, lng));
 };
 
-window.saveStatus = function(num, status) {
-    localStorage.setItem(`visit_${num}`, status);
+// 6. 방문 상태 저장 함수
+window.setStatus = function(num, status) {
+    localStorage.setItem(`visit_ncsi_${num}`, status);
     updateDashboard();
     infoWindow.close();
 };
