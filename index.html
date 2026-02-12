@@ -7,6 +7,10 @@
 
 <script src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=k8vacdhpym&submodules=geocoder"></script>
 
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
 <style>
 html, body { margin:0; padding:0; height:100%; }
 #map { width:100vw; height:100vh; }
@@ -21,6 +25,19 @@ html, body { margin:0; padding:0; height:100%; }
   border-radius:20px;
   font-weight:bold;
   box-shadow:0 2px 8px rgba(0,0,0,.2);
+}
+
+#loading {
+  position:absolute;
+  top:50px;
+  right:10px;
+  z-index:1000;
+  background:#4caf50;
+  color:#fff;
+  padding:8px 12px;
+  border-radius:16px;
+  font-size:12px;
+  display:none;
 }
 
 /* 말풍선 */
@@ -194,6 +211,7 @@ html, body { margin:0; padding:0; height:100%; }
 <body>
 
 <div id="progress">완료율 0%</div>
+<div id="loading">저장 중...</div>
 <div id="map"></div>
 
 <!-- 모달 -->
@@ -223,6 +241,25 @@ html, body { margin:0; padding:0; height:100%; }
 </div>
 
 <script>
+// ============================================
+// Firebase 설정 (여기에 본인의 config를 입력하세요!)
+// ============================================
+const firebaseConfig = {
+  apiKey: "AIzaSyDjTcHpGJskJNkY-qLlU02A_yDe4fCZIaI",
+  authDomain: "store-map-5cf8b.firebaseapp.com",
+  projectId: "store-map-5cf8b",
+  storageBucket: "store-map-5cf8b.firebasestorage.app",
+  messagingSenderId: "805186031186",
+  appId: "1:805186031186:web:694602e04ee9579189998b"
+};
+
+// Firebase 초기화
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// ============================================
+// 매장 데이터
+// ============================================
 const stores = [
 {num:1,name:"신도SDR",address:"서울 강남구 테헤란로88길 14"},
 {num:2,name:"큰사랑대리점",address:"서울 강남구 언주로30길 21"},
@@ -304,9 +341,61 @@ const stores = [
 {num:78,name:"PS&M",address:"서울 중랑구 동일로 801"}
 ];
 
-let storeData = {}; // {num: {visited: false, comment: ""}}
+let storeData = {};
 let currentStore = null;
 let map;
+
+// ============================================
+// Firebase 함수들
+// ============================================
+
+// Firestore에서 데이터 불러오기
+async function loadDataFromFirebase() {
+  try {
+    const snapshot = await db.collection('stores').get();
+    snapshot.forEach(doc => {
+      storeData[doc.id] = doc.data();
+    });
+    console.log('Firebase에서 데이터 로드 완료:', Object.keys(storeData).length + '개');
+    updateAllBubbles();
+    updateProgress();
+  } catch (error) {
+    console.error('데이터 로드 실패:', error);
+  }
+}
+
+// Firestore에 데이터 저장하기
+async function saveDataToFirebase(storeNum, data) {
+  showLoading(true);
+  try {
+    await db.collection('stores').doc(String(storeNum)).set(data);
+    console.log(`매장 ${storeNum} 저장 완료`);
+    showLoading(false);
+  } catch (error) {
+    console.error('저장 실패:', error);
+    alert('저장에 실패했습니다. 다시 시도해주세요.');
+    showLoading(false);
+  }
+}
+
+// 로딩 표시
+function showLoading(show) {
+  document.getElementById('loading').style.display = show ? 'block' : 'none';
+}
+
+// 모든 말풍선 업데이트
+function updateAllBubbles() {
+  Object.keys(storeData).forEach(num => {
+    const bubble = document.getElementById(`b-${num}`);
+    if (bubble && storeData[num].visited) {
+      bubble.classList.add('visited');
+    }
+  });
+}
+
+// ============================================
+// 기존 함수들
+// ============================================
 
 function updateProgress(){
   const total = stores.length;
@@ -324,7 +413,6 @@ function openModal(storeNum){
   document.getElementById("modal-title").innerText = 
     `${store.num}. ${store.name}`;
   
-  // 상태 버튼 설정
   document.querySelectorAll(".status-btn").forEach(btn => {
     btn.classList.remove("active");
     if(btn.dataset.status === String(data.visited)){
@@ -332,7 +420,6 @@ function openModal(storeNum){
     }
   });
   
-  // 코멘트 설정
   const textarea = document.getElementById("comment-input");
   textarea.value = data.comment || "";
   updateCharCount();
@@ -345,12 +432,16 @@ function closeModal(){
   currentStore = null;
 }
 
-function saveModal(){
+async function saveModal(){
   const visitedBtn = document.querySelector(".status-btn.active");
   const visited = visitedBtn ? visitedBtn.dataset.status === "true" : false;
   const comment = document.getElementById("comment-input").value;
   
-  storeData[currentStore] = {visited, comment};
+  const data = {visited, comment, updatedAt: new Date().toISOString()};
+  storeData[currentStore] = data;
+  
+  // Firebase에 저장
+  await saveDataToFirebase(currentStore, data);
   
   // 말풍선 스타일 업데이트
   const bubble = document.getElementById(`b-${currentStore}`);
@@ -382,14 +473,20 @@ document.querySelectorAll(".status-btn").forEach(btn => {
   });
 });
 
-// 모달 배경 클릭 시 닫기
 document.getElementById("modal").addEventListener("click", function(e){
   if(e.target === this){
     closeModal();
   }
 });
 
-naver.maps.onJSContentLoaded = function(){
+// ============================================
+// 지도 초기화
+// ============================================
+
+naver.maps.onJSContentLoaded = async function(){
+  // Firebase에서 데이터 먼저 불러오기
+  await loadDataFromFirebase();
+  
   map = new naver.maps.Map("map", {
     center: new naver.maps.LatLng(37.55,126.97),
     zoom: 11
@@ -398,8 +495,10 @@ naver.maps.onJSContentLoaded = function(){
   const bounds = new naver.maps.LatLngBounds();
 
   stores.forEach((store,index)=>{
-    // 초기 데이터 설정
-    storeData[store.num] = {visited: false, comment: ""};
+    // 초기 데이터 설정 (Firebase에 없으면)
+    if (!storeData[store.num]) {
+      storeData[store.num] = {visited: false, comment: ""};
+    }
 
     setTimeout(()=>{
       naver.maps.Service.geocode(
@@ -411,12 +510,14 @@ naver.maps.onJSContentLoaded = function(){
           const pos = new naver.maps.LatLng(addr.y, addr.x);
           bounds.extend(pos);
 
+          const isVisited = storeData[store.num].visited ? 'visited' : '';
+
           const marker = new naver.maps.Marker({
             position: pos,
             map: map,
             icon:{
               content:`
-                <div class="bubble" id="b-${store.num}">
+                <div class="bubble ${isVisited}" id="b-${store.num}">
                   ${store.num}. ${store.name}
                 </div>
               `,
@@ -442,3 +543,4 @@ naver.maps.onJSContentLoaded = function(){
 
 </body>
 </html>
+
