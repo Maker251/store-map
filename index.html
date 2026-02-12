@@ -8,10 +8,19 @@
     <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; }
         #map { width: 100vw; height: 100vh; background-color: #f0f0f0; }
+        
+        /* 대리점 번호와 이름을 표시하는 라벨 스타일 */
         .label-container {
-            background: #fff; border: 2px solid #ff4d4d; border-radius: 5px;
-            padding: 2px 6px; font-size: 12px; font-weight: bold; color: #333;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.2); white-space: nowrap;
+            background: #ffffff;
+            border: 2px solid #ff4d4d;
+            border-radius: 4px;
+            padding: 3px 8px;
+            font-size: 13px;
+            font-weight: bold;
+            color: #333;
+            box-shadow: 2px 2px 6px rgba(0,0,0,0.3);
+            white-space: nowrap;
+            pointer-events: none; /* 클릭 방해 금지 */
         }
     </style>
 </head>
@@ -22,7 +31,7 @@
 naver.maps.onJSContentLoaded = function() {
     
     if (!naver.maps.Service) {
-        alert("Geocoding 서비스가 로드되지 않았습니다. 콘솔 설정을 확인해주세요.");
+        alert("Geocoding 서비스가 로드되지 않았습니다.");
         return;
     }
 
@@ -31,7 +40,6 @@ naver.maps.onJSContentLoaded = function() {
         zoom: 11
     });
 
-    // 최신 주소 정보 (41개 모든 매장)
     const stores = [
         {num: 1, name: "울림터대리점 군자역점", address: "서울특별시 광진구 능동로 297"},
         {num: 2, name: "다원대리점 중곡직영점", address: "서울 광진구 긴고랑로 115"},
@@ -80,14 +88,22 @@ naver.maps.onJSContentLoaded = function() {
         naver.maps.Service.geocode({ query: store.address }, function(status, response) {
             if (status === naver.maps.Service.Status.OK) {
                 const result = response.v2.addresses[0];
-                const point = new naver.maps.Point(result.x, result.y);
-                const marker = new naver.maps.Marker({ position: point, map: map });
+                const point = new naver.maps.LatLng(result.y, result.x);
+                
+                // 1. 기본 마커 생성
+                const marker = new naver.maps.Marker({
+                    position: point,
+                    map: map
+                });
+
+                // 2. 고유 번호와 이름을 보여줄 커스텀 오버레이 생성
+                const contentHtml = `<div class="label-container">${store.num}. ${store.name}</div>`;
                 
                 new naver.maps.CustomOverlay({
                     position: point,
-                    content: `<div class="label-container">${store.num}. ${store.name}</div>`,
+                    content: contentHtml,
                     map: map,
-                    yAnchor: 2.5
+                    yAnchor: 2.8 // 마커보다 약간 위에 표시되도록 높이 조절
                 });
             }
         });
