@@ -8,31 +8,14 @@
     <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; }
         #map { width: 100vw; height: 100vh; background-color: #f0f0f0; }
-        
-        /* 라벨이 확실히 보이도록 z-index와 스타일 강화 */
         .label-container {
-            position: relative;
-            background: #ff4d4d; /* 배경색을 붉은색으로 변경해 가시성 확보 */
-            color: white;
-            border: 1px solid #b30000;
-            border-radius: 3px;
-            padding: 2px 5px;
-            font-size: 12px;
-            font-weight: bold;
-            white-space: nowrap;
-            box-shadow: 1px 1px 4px rgba(0,0,0,0.4);
-            z-index: 1000; /* 지도 요소 위로 올림 */
-        }
-        /* 화살표 모양 추가 (선택사항) */
-        .label-container::after {
-            content: '';
+            background: #fff; border: 2px solid #ff4d4d; border-radius: 5px;
+            padding: 2px 6px; font-size: 12px; font-weight: bold; color: #333;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2); white-space: nowrap;
             position: absolute;
-            bottom: -5px;
-            left: 50%;
-            transform: translateX(-50%);
-            border-top: 5px solid #ff4d4d;
-            border-left: 5px solid transparent;
-            border-right: 5px solid transparent;
+            transform: translate(-50%, -100%);
+            margin-top: -10px;
+            z-index: 1000;
         }
     </style>
 </head>
@@ -41,11 +24,18 @@
 
 <script>
 naver.maps.onJSContentLoaded = function() {
+    
+    if (!naver.maps.Service) {
+        alert("Geocoding 서비스가 로드되지 않았습니다. 콘솔 설정을 확인해주세요.");
+        return;
+    }
+
     const map = new naver.maps.Map("map", {
         center: new naver.maps.LatLng(37.5665, 126.9780),
-        zoom: 12
+        zoom: 11
     });
 
+    // 최신 주소 정보 (41개 모든 매장)
     const stores = [
         {num: 1, name: "울림터대리점 군자역점", address: "서울특별시 광진구 능동로 297"},
         {num: 2, name: "다원대리점 중곡직영점", address: "서울 광진구 긴고랑로 115"},
@@ -90,27 +80,39 @@ naver.maps.onJSContentLoaded = function() {
         {num: 41, name: "세하 신정본점", address: "서울 양천구 중앙로 267"}
     ];
 
-    // 주소 -> 좌표 변환 및 표시
     stores.forEach((store) => {
         naver.maps.Service.geocode({ query: store.address }, function(status, response) {
-            if (status !== naver.maps.Service.Status.OK) return;
-
-            const result = response.v2.addresses[0];
-            const point = new naver.maps.LatLng(result.y, result.x);
-
-            // 마커 생성
-            new naver.maps.Marker({
-                position: point,
-                map: map
-            });
-
-            // 라벨 생성 (번호 + 이름)
-            new naver.maps.CustomOverlay({
-                position: point,
-                content: `<div class="label-container">${store.num}. ${store.name}</div>`,
-                map: map,
-                yAnchor: 1.5 // 마커 바로 위에 배치
-            });
+            if (status === naver.maps.Service.Status.OK) {
+                const result = response.v2.addresses[0];
+                const point = new naver.maps.Point(result.x, result.y);
+                const marker = new naver.maps.Marker({ position: point, map: map });
+                
+                // 라벨을 DOM에 직접 추가
+                const labelDiv = document.createElement('div');
+                labelDiv.className = 'label-container';
+                labelDiv.innerHTML = `${store.num}. ${store.name}`;
+                
+                const overlay = new naver.maps.OverlayView();
+                overlay.setMap(map);
+                
+                overlay.onAdd = function() {
+                    const panes = this.getPanes();
+                    panes.overlayLayer.appendChild(labelDiv);
+                };
+                
+                overlay.draw = function() {
+                    const projection = this.getProjection();
+                    const position = projection.fromCoordToOffset(point);
+                    labelDiv.style.left = position.x + 'px';
+                    labelDiv.style.top = (position.y - 40) + 'px';
+                };
+                
+                overlay.onRemove = function() {
+                    if (labelDiv.parentNode) {
+                        labelDiv.parentNode.removeChild(labelDiv);
+                    }
+                };
+            }
         });
     });
 };
