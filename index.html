@@ -3,19 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NCSI 대리점 정밀 지도</title>
+    <title>NCSI 대리점 정밀 지도 (78개소)</title>
     <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=k8vacdhpym&submodules=geocoder"></script>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Malgun Gothic', dotum, sans-serif; }
         #map { width: 100vw; height: 100vh; background-color: #f0f0f0; }
+        
+        /* 라벨 스타일: 매장이 많으므로 가독성과 콤팩트함 유지 */
         .label-container {
-            background: #fff; border: 2px solid #ff4d4d; border-radius: 5px;
-            padding: 2px 6px; font-size: 12px; font-weight: bold; color: #333;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.2); white-space: nowrap;
+            position: relative;
+            background: #ff4d4d;
+            color: white;
+            border: 1px solid #b30000;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 11px;
+            font-weight: bold;
+            white-space: nowrap;
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            pointer-events: none;
+        }
+
+        .label-container::after {
+            content: '';
             position: absolute;
-            transform: translate(-50%, -100%);
-            margin-top: -10px;
-            z-index: 1000;
+            bottom: -4px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-top: 4px solid #ff4d4d;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
         }
     </style>
 </head>
@@ -24,95 +41,118 @@
 
 <script>
 naver.maps.onJSContentLoaded = function() {
-    
-    if (!naver.maps.Service) {
-        alert("Geocoding 서비스가 로드되지 않았습니다. 콘솔 설정을 확인해주세요.");
-        return;
-    }
-
     const map = new naver.maps.Map("map", {
         center: new naver.maps.LatLng(37.5665, 126.9780),
-        zoom: 11
+        zoom: 11,
+        zoomControl: true,
+        zoomControlOptions: { position: naver.maps.Position.TOP_RIGHT }
     });
 
-    // 최신 주소 정보 (41개 모든 매장)
     const stores = [
-        {num: 1, name: "울림터대리점 군자역점", address: "서울특별시 광진구 능동로 297"},
-        {num: 2, name: "다원대리점 중곡직영점", address: "서울 광진구 긴고랑로 115"},
-        {num: 3, name: "광장대리점 중곡점", address: "서울 광진구 면목로 160"},
-        {num: 4, name: "울림터대리점 본점", address: "서울 광진구 아차산로 220"},
-        {num: 5, name: "광장대리점 구의점", address: "서울 광진구 아차산로 415"},
-        {num: 6, name: "울림터대리점 건대이마트점", address: "서울특별시 광진구 아차산로 262"},
-        {num: 7, name: "울림터대리점 구의역점", address: "서울 광진구 자양로 93"},
-        {num: 8, name: "알파대리점 노원직영점", address: "서울 노원구 노해로 490"},
-        {num: 9, name: "신창대리점 공릉역점", address: "서울 노원구 동일로 1077"},
-        {num: 10, name: "가능대리점 상계직영점", address: "서울 노원구 동일로 1379"},
-        {num: 11, name: "PS&M (마들역점)", address: "서울 노원구 동일로 1538"},
-        {num: 12, name: "서울ent대리점 공릉직영점", address: "서울 노원구 동일로192길 11"},
-        {num: 13, name: "신창대리점 노원역직영점", address: "서울 노원구 상계로 75"},
-        {num: 14, name: "알파대리점 석계역점", address: "서울 노원구 석계로 4"},
-        {num: 15, name: "신창대리점 광운대점", address: "서울 노원구 석계로 95"},
-        {num: 16, name: "ACE대리점 은행사거리점", address: "서울 노원구 한글비석로 254"},
-        {num: 17, name: "서울ent대리점 상계역점", address: "서울 노원구 한글비석로 384"},
-        {num: 18, name: "상록수대리점 우장산점", address: "서울 강서구 강서로 242"},
-        {num: 19, name: "동진대리점 강서중앙점", address: "서울 강서구 강서로 279"},
-        {num: 20, name: "동진대리점 까치산역 본점", address: "서울 강서구 강서로 63"},
-        {num: 21, name: "참스타대리점 등촌점", address: "서울 강서구 강서로56길"},
-        {num: 22, name: "신나는 마곡직영점", address: "서울 강서구 공항대로 168"},
-        {num: 23, name: "강서대리점 염창역점", address: "서울 강서구 공항대로 635"},
-        {num: 24, name: "동진대리점 마곡본점", address: "서울 강서구 강서로 385"},
-        {num: 25, name: "동진대리점 마곡나루점", address: "서울 강서구 마곡중앙로 161-17"},
-        {num: 26, name: "참스타대리점 블루나인점", address: "서울 강서구 양천로 583"},
-        {num: 27, name: "큰사랑대리점 방화직영점", address: "서울 강서구 양천로 73"},
-        {num: 28, name: "PS&M (화곡역점)", address: "서울 강서구 화곡로 161"},
-        {num: 29, name: "세하대리점 화곡역본점", address: "서울 강서구 화곡로 190"},
-        {num: 30, name: "동진대리점 화곡직영점", address: "서울 강서구 화곡로25길 2"},
-        {num: 31, name: "동진대리점 가양역 본점", address: "서울 강서구 화곡로68길 3"},
-        {num: 32, name: "PS&M (등촌역점)", address: "서울 양천구 공항대로 564"},
-        {num: 33, name: "강서대리점 신월본점", address: "서울 양천구 남부순환로 354"},
-        {num: 34, name: "참스타대리점 신월점", address: "서울 양천구 남부순환로 585"},
-        {num: 35, name: "유원대리점 목동41타워점", address: "서울 양천구 목동동로 293"},
-        {num: 36, name: "한유대리점 목동광장직영점", address: "서울 양천구 목동동로 379"},
-        {num: 37, name: "새서울대리점 신정직영점", address: "서울 양천구 목동동로 53"},
-        {num: 38, name: "유원대리점 목동본점", address: "서울 양천구 목동서로 63"},
-        {num: 39, name: "MD대리점 염창동직영점", address: "서울 양천구 목동중앙본로 126"},
-        {num: 40, name: "세하대리점 등촌깨비시장점", address: "서울 양천구 목동중앙북로 29"},
-        {num: 41, name: "세하 신정본점", address: "서울 양천구 중앙로 267"}
+        {num: 1, name: "신도SDR", address: "서울 강남구 테헤란로88길 14"},
+        {num: 2, name: "큰사랑대리점", address: "서울 강남구 언주로30길 21"},
+        {num: 3, name: "한유대리점", address: "서울 강남구 광평로51길 8"},
+        {num: 4, name: "새서울대리점", address: "서울 강남구 압구정로 154"},
+        {num: 5, name: "강남스타대리점", address: "서울 강남구 선릉로 640"},
+        {num: 6, name: "강남스타대리점", address: "서울 강남구 일원로 41"},
+        {num: 7, name: "강남스타대리점", address: "서울 강남구 선릉로 640"},
+        {num: 8, name: "라이즈", address: "서울 강남구 논현로154길 16"},
+        {num: 9, name: "오아시스", address: "서울 강동구 천호옛길 70"},
+        {num: 10, name: "준대리점", address: "서울 강동구 천호대로 1099"},
+        {num: 11, name: "트렌드플래너", address: "서울 강동구 천호옛길 70"},
+        {num: 12, name: "서울ent대리점", address: "서울 강동구 강동대로53길 31"},
+        {num: 13, name: "서울ent대리점", address: "서울 강동구 강동대로53길 31"},
+        {num: 14, name: "아리온", address: "서울 강동구 상암로 47"},
+        {num: 15, name: "늘봄대리점", address: "서울 강동구 성내로 6"},
+        {num: 16, name: "(주)피앤씨홀딩스", address: "서울 강북구 삼양로 237"},
+        {num: 17, name: "PS&M", address: "서울 강북구 도봉로 353"},
+        {num: 18, name: "신나는", address: "서울 강서구 공항대로 168"},
+        {num: 19, name: "참스타대리점", address: "서울 강서구 양천로 583"},
+        {num: 20, name: "도일대리점", address: "서울 강서구 양천로 556"},
+        {num: 21, name: "염창대리점", address: "서울 강서구 양천로 706"},
+        {num: 22, name: "상록수대리점", address: "서울 강서구 강서로 254"},
+        {num: 23, name: "상록수대리점", address: "서울 강서구 강서로 242"},
+        {num: 24, name: "백두대간대리점", address: "서울 강서구 양천로 86"},
+        {num: 25, name: "동진대리점", address: "서울 강서구 강서로 279"},
+        {num: 26, name: "연우대리점", address: "서울 강서구 월정로 160"},
+        {num: 27, name: "정원대리점", address: "서울 광진구 구의강변로 64"},
+        {num: 28, name: "CD대리점", address: "서울 광진구 천호대로 597"},
+        {num: 29, name: "광장대리점", address: "서울 광진구 면목로 160"},
+        {num: 30, name: "울림터대리점", address: "서울 광진구 아차산로 220"},
+        {num: 31, name: "알리바바대리점", address: "서울 광진구 천호대로143길 23"},
+        {num: 32, name: "아토", address: "서울 광진구 천호대로 571"},
+        {num: 33, name: "CD대리점", address: "서울 구로구 경인로 661"},
+        {num: 34, name: "구로서부대리점", address: "서울 구로구 구로동로 82"},
+        {num: 35, name: "PS&M", address: "서울 구로구 경인로 661"},
+        {num: 36, name: "PS&M", address: "서울 구로구 도림로 73"},
+        {num: 37, name: "독산대리점", address: "서울 금천구 시흥대로 233"},
+        {num: 38, name: "어프레쉬대리점", address: "서울 금천구 시흥대로138길 19"},
+        {num: 39, name: "지은대리점", address: "서울 금천구 벚꽃로 234"},
+        {num: 40, name: "서울ent대리점", address: "서울 노원구 한글비석로 384"},
+        {num: 41, name: "알파대리점", address: "서울 노원구 석계로 4"},
+        {num: 42, name: "신창대리점", address: "서울 도봉구 덕릉로 248-1"},
+        {num: 43, name: "서울신당대리점", address: "서울 동대문구 천호대로 14"},
+        {num: 44, name: "707", address: "서울 마포구 월드컵로 62"},
+        {num: 45, name: "울림터대리점", address: "서울 마포구 양화로 45"},
+        {num: 46, name: "퓨처스", address: "서울 마포구 모래내로 5"},
+        {num: 47, name: "논현역대리점", address: "서울 서초구 사평대로55길 149"},
+        {num: 48, name: "미래대리점", address: "서울 성동구 마장로 284-1"},
+        {num: 49, name: "한유대리점", address: "서울 성동구 아차산로 33"},
+        {num: 50, name: "SK모바일포탈", address: "서울 성동구 아차산로 38"},
+        {num: 51, name: "늘푸른대리점", address: "서울 성북구 동소문로 17"},
+        {num: 52, name: "정릉대리점", address: "서울 성북구 보국문로 81"},
+        {num: 53, name: "알파대리점", address: "서울 성북구 길음로 33"},
+        {num: 54, name: "ACE대리점", address: "서울 성북구 화랑로 248"},
+        {num: 55, name: "PS&M", address: "서울 성북구 아리랑로 10"},
+        {num: 56, name: "브레인아이씨티", address: "서울 송파구 법원로11길 11"},
+        {num: 57, name: "에스알", address: "서울 송파구 법원로8길 7"},
+        {num: 58, name: "참스타대리점", address: "서울 양천구 남부순환로 585"},
+        {num: 59, name: "한유대리점", address: "서울 양천구 목동동로 379"},
+        {num: 60, name: "에스알", address: "서울 양천구 지양로 74"},
+        {num: 61, name: "백두대간대리점", address: "서울 양천구 목동서로 349"},
+        {num: 62, name: "서울ent대리점", address: "서울 영등포구 도영로 27"},
+        {num: 63, name: "유통상가대리점", address: "서울 영등포구 영등포로 131"},
+        {num: 64, name: "유원대리점", address: "서울 영등포구 선유로49길 23"},
+        {num: 65, name: "새샘대리점", address: "서울 영등포구 당산로 83"},
+        {num: 66, name: "펜타곤", address: "서울 용산구 한강대로7길 10-8"},
+        {num: 67, name: "프리스비", address: "서울 용산구 한강대로 283-8"},
+        {num: 68, name: "(주)피앤씨홀딩스", address: "서울 용산구 이태원로 187"},
+        {num: 69, name: "한유대리점", address: "서울 은평구 연서로 75"},
+        {num: 70, name: "범교대리점", address: "서울 은평구 수색로 195"},
+        {num: 71, name: "신드롬대리점", address: "서울 은평구 서오릉로 173"},
+        {num: 72, name: "참스타대리점", address: "서울 종로구 송월길 99"},
+        {num: 73, name: "유니쿱대리점", address: "서울 종로구 성균관로 15"},
+        {num: 74, name: "유선대리점", address: "서울 중구 다산로 132"},
+        {num: 75, name: "프리스비", address: "서울 중구 동호로 180"},
+        {num: 76, name: "Orange", address: "서울 중구 명동3길 6"},
+        {num: 77, name: "(주)피앤씨홀딩스", address: "서울 중랑구 용마산로115길 127"},
+        {num: 78, name: "PS&M", address: "서울 중랑구 동일로 801"}
     ];
 
     stores.forEach((store) => {
         naver.maps.Service.geocode({ query: store.address }, function(status, response) {
-            if (status === naver.maps.Service.Status.OK) {
-                const result = response.v2.addresses[0];
-                const point = new naver.maps.Point(result.x, result.y);
-                const marker = new naver.maps.Marker({ position: point, map: map });
-                
-                // 라벨을 DOM에 직접 추가
-                const labelDiv = document.createElement('div');
-                labelDiv.className = 'label-container';
-                labelDiv.innerHTML = `${store.num}. ${store.name}`;
-                
-                const overlay = new naver.maps.OverlayView();
-                overlay.setMap(map);
-                
-                overlay.onAdd = function() {
-                    const panes = this.getPanes();
-                    panes.overlayLayer.appendChild(labelDiv);
-                };
-                
-                overlay.draw = function() {
-                    const projection = this.getProjection();
-                    const position = projection.fromCoordToOffset(point);
-                    labelDiv.style.left = position.x + 'px';
-                    labelDiv.style.top = (position.y - 40) + 'px';
-                };
-                
-                overlay.onRemove = function() {
-                    if (labelDiv.parentNode) {
-                        labelDiv.parentNode.removeChild(labelDiv);
-                    }
-                };
-            }
+            if (status !== naver.maps.Service.Status.OK) return;
+
+            const result = response.v2.addresses[0];
+            const point = new naver.maps.LatLng(result.y, result.x);
+
+            // 미니멀한 마커 (빨간 점)
+            new naver.maps.Marker({
+                position: point,
+                map: map,
+                icon: {
+                    content: '<div style="width:10px; height:10px; background:#b30000; border:2px solid #fff; border-radius:50%;"></div>',
+                    anchor: new naver.maps.Point(5, 5)
+                }
+            });
+
+            // 번호와 이름 라벨
+            new naver.maps.CustomOverlay({
+                position: point,
+                content: `<div class="label-container">${store.num}. ${store.name}</div>`,
+                map: map,
+                yAnchor: 1.6
+            });
         });
     });
 };
