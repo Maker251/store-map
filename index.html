@@ -2,10 +2,10 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>대리점 방문 지도</title>
+<title>대리점 방문 관리 지도</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<script src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=k8vacdhpym&submodules=geocoder"></script>
+<script src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=YOUR_NCP_KEY_ID&submodules=geocoder"></script>
 
 <style>
 html, body { margin:0; padding:0; height:100%; }
@@ -23,7 +23,6 @@ html, body { margin:0; padding:0; height:100%; }
   box-shadow:0 2px 8px rgba(0,0,0,.2);
 }
 
-/* 말풍선 */
 .bubble {
   position:relative;
   background:#fff;
@@ -58,6 +57,18 @@ html, body { margin:0; padding:0; height:100%; }
 .bubble.visited:after {
   border-top-color:#1976d2;
 }
+
+textarea {
+  width:100%;
+  height:80px;
+  margin-top:8px;
+  resize:none;
+}
+
+button {
+  margin-top:8px;
+  padding:6px 10px;
+}
 </style>
 </head>
 
@@ -67,6 +78,8 @@ html, body { margin:0; padding:0; height:100%; }
 <div id="map"></div>
 
 <script>
+const STORAGE_KEY = "store_visit_data";
+
 const stores = [
 {num:1,name:"신도SDR",address:"서울 강남구 테헤란로88길 14"},
 {num:2,name:"큰사랑대리점",address:"서울 강남구 언주로30길 21"},
@@ -148,18 +161,23 @@ const stores = [
 {num:78,name:"PS&M",address:"서울 중랑구 동일로 801"}
 ];
 
-let visited = {};
+let visitData = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
 let map;
+
+function saveData(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(visitData));
+}
 
 function updateProgress(){
   const total = stores.length;
-  const done = Object.values(visited).filter(v=>v).length;
-  const percent = Math.round((done/total)*100);
+  const done = Object.values(visitData).filter(v => v?.visited).length;
+  const percent = total ? Math.round((done/total)*100) : 0;
   document.getElementById("progress").innerText =
     `완료율 ${done}/${total} (${percent}%)`;
 }
 
 naver.maps.onJSContentLoaded = function(){
+
   map = new naver.maps.Map("map", {
     center: new naver.maps.LatLng(37.55,126.97),
     zoom: 11
@@ -170,23 +188,27 @@ naver.maps.onJSContentLoaded = function(){
   stores.forEach((store,index)=>{
 
     setTimeout(()=>{
+
       naver.maps.Service.geocode(
         {query:store.address},
         function(status,res){
+
           if(status !== naver.maps.Service.Status.OK) return;
 
           const addr = res.v2.addresses[0];
           const pos = new naver.maps.LatLng(addr.y, addr.x);
           bounds.extend(pos);
 
-          visited[store.num] = false;
+          if(!visitData[store.num]){
+            visitData[store.num] = { visited:false, comment:"" };
+          }
 
           const marker = new naver.maps.Marker({
             position: pos,
             map: map,
             icon:{
               content:`
-                <div class="bubble" id="b-${store.num}">
+                <div class="bubble ${visitData[store.num].visited ? 'visited' : ''}" id="b-${store.num}">
                   ${store.num}. ${store.name}
                 </div>
               `,
@@ -194,11 +216,30 @@ naver.maps.onJSContentLoaded = function(){
             }
           });
 
+          const info = new naver.maps.InfoWindow();
+
           naver.maps.Event.addListener(marker,"click",()=>{
-            visited[store.num] = !visited[store.num];
-            const el = document.getElementById(`b-${store.num}`);
-            el.classList.toggle("visited");
-            updateProgress();
+
+            const current = visitData[store.num];
+
+            info.setContent(`
+              <div style="padding:10px;width:220px;">
+                <b>${store.num}. ${store.name}</b><br>
+                <small>${store.address}</small><br>
+                <button onclick="toggleVisit(${store.num})">
+                  ${current.visited ? "미방문으로 변경" : "완료로 등록"}
+                </button>
+                <textarea maxlength="500"
+                  placeholder="500자 이내 코멘트 입력"
+                  oninput="updateComment(${store.num}, this.value)"
+                >${current.comment || ""}</textarea>
+                <div style="font-size:12px;color:#666;">
+                  ${current.comment?.length || 0}/500자
+                </div>
+              </div>
+            `);
+
+            info.open(map, marker);
           });
 
           if(index === stores.length-1){
@@ -207,13 +248,26 @@ naver.maps.onJSContentLoaded = function(){
           }
         }
       );
+
     }, index*40);
 
   });
 };
+
+function toggleVisit(num){
+  visitData[num].visited = !visitData[num].visited;
+  saveData();
+  updateProgress();
+
+  const el = document.getElementById(`b-${num}`);
+  el.classList.toggle("visited");
+}
+
+function updateComment(num, value){
+  visitData[num].comment = value;
+  saveData();
+}
 </script>
 
 </body>
 </html>
-
-
