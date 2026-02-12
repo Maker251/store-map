@@ -1,274 +1,252 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<title>대리점 방문 관리 지도</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <title>NCSI 대리점 정밀 지도 및 방문 관리</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=k8vacdhpym&submodules=geocoder"></script>
+    <style>
+        body, html { margin:0; padding:0; height:100%; overflow: hidden; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; }
+        #map { width:100vw; height:100vh; }
 
-<script src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=k8vacdhpym&submodules=geocoder"></script>
+        /* 상단 진행률 바 */
+        #progress-container {
+            position:absolute; top:15px; left:15px; z-index:1000;
+            background: white; padding: 12px 20px; border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15); border: 1px solid #ddd;
+        }
+        #progress-text { font-weight: bold; font-size: 14px; margin-bottom: 5px; }
+        #progress-bar-bg { width: 100%; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; }
+        #progress-bar-fill { height: 100%; background: #007bff; width: 0%; transition: width 0.3s; }
 
-<style>
-html, body { margin:0; padding:0; height:100%; }
-#map { width:100vw; height:100vh; }
+        /* 지도 위 라벨 (버블) */
+        .bubble {
+            position:relative; background:#fff; border:2px solid #ff4d4d;
+            border-radius:20px; padding:4px 12px; font-size:12px; font-weight:bold;
+            white-space:nowrap; cursor:pointer; box-shadow: 2px 2px 6px rgba(0,0,0,0.1);
+            transform: translate(-50%, -100%); margin-top: -10px; transition: all 0.2s;
+        }
+        .bubble.visited { border-color:#007bff; color:#007bff; background: #eef7ff; }
+        .bubble:after {
+            content:""; position:absolute; left:50%; bottom:-8px; transform:translateX(-50%);
+            border-left:6px solid transparent; border-right:6px solid transparent; border-top:8px solid #ff4d4d;
+        }
+        .bubble.visited:after { border-top-color:#007bff; }
 
-#progress {
-  position:absolute;
-  top:10px;
-  right:10px;
-  z-index:1000;
-  background:#fff;
-  padding:10px 16px;
-  border-radius:20px;
-  font-weight:bold;
-  box-shadow:0 2px 8px rgba(0,0,0,.2);
-}
-
-.bubble {
-  position:relative;
-  background:#fff;
-  border:2px solid #d32f2f;
-  border-radius:8px;
-  padding:4px 10px;
-  font-size:12px;
-  font-weight:bold;
-  white-space:nowrap;
-  cursor:pointer;
-  transition:.2s;
-}
-
-.bubble.visited {
-  border-color:#1976d2;
-  color:#1976d2;
-}
-
-.bubble:after {
-  content:"";
-  position:absolute;
-  left:50%;
-  transform:translateX(-50%);
-  bottom:-8px;
-  width:0;
-  height:0;
-  border-left:6px solid transparent;
-  border-right:6px solid transparent;
-  border-top:8px solid #d32f2f;
-}
-
-.bubble.visited:after {
-  border-top-color:#1976d2;
-}
-
-textarea {
-  width:100%;
-  height:80px;
-  margin-top:8px;
-  resize:none;
-}
-
-button {
-  margin-top:8px;
-  padding:6px 10px;
-}
-</style>
+        /* 상세 정보창 (InfoWindow) 스타일 */
+        .info-window { padding: 15px; min-width: 250px; border: none; }
+        .info-title { font-size: 16px; font-weight: bold; margin-bottom: 10px; color: #333; }
+        .info-status-btn { 
+            width: 100%; padding: 8px; border: none; border-radius: 6px; 
+            font-weight: bold; cursor: pointer; margin-bottom: 10px;
+        }
+        .status-unvisited { background: #ff4d4d; color: white; }
+        .status-visited { background: #007bff; color: white; }
+        .comment-area { 
+            width: 90%; height: 80px; padding: 10px; border: 1px solid #ddd; 
+            border-radius: 6px; font-size: 13px; resize: none; margin-bottom: 5px;
+        }
+        .char-count { font-size: 11px; color: #888; text-align: right; margin-bottom: 10px; }
+        .save-btn { 
+            width: 100%; padding: 8px; background: #333; color: white; 
+            border: none; border-radius: 6px; cursor: pointer; font-weight: bold;
+        }
+    </style>
 </head>
-
 <body>
 
-<div id="progress">완료율 0%</div>
+<div id="progress-container">
+    <div id="progress-text">로딩 중...</div>
+    <div id="progress-bar-bg"><div id="progress-bar-fill"></div></div>
+</div>
 <div id="map"></div>
 
 <script>
-const STORAGE_KEY = "store_visit_data";
-
+// 78개 매장 데이터
 const stores = [
-{num:1,name:"신도SDR",address:"서울 강남구 테헤란로88길 14"},
-{num:2,name:"큰사랑대리점",address:"서울 강남구 언주로30길 21"},
-{num:3,name:"한유대리점",address:"서울 강남구 광평로51길 8"},
-{num:4,name:"새서울대리점",address:"서울 강남구 압구정로 154"},
-{num:5,name:"강남스타대리점",address:"서울 강남구 선릉로 640"},
-{num:6,name:"강남스타대리점",address:"서울 강남구 일원로 41"},
-{num:7,name:"강남스타대리점",address:"서울 강남구 선릉로 640"},
-{num:8,name:"라이즈",address:"서울 강남구 논현로154길 16"},
-{num:9,name:"오아시스",address:"서울 강동구 천호옛길 70"},
-{num:10,name:"준대리점",address:"서울 강동구 천호대로 1099"},
-{num:11,name:"트렌드플래너",address:"서울 강동구 천호옛길 70"},
-{num:12,name:"서울ent대리점",address:"서울 강동구 강동대로53길 31"},
-{num:13,name:"서울ent대리점",address:"서울 강동구 강동대로53길 31"},
-{num:14,name:"아리온",address:"서울 강동구 상암로 47"},
-{num:15,name:"늘봄대리점",address:"서울 강동구 성내로 6"},
-{num:16,name:"피앤씨홀딩스",address:"서울 강북구 삼양로 237"},
-{num:17,name:"PS&M",address:"서울 강북구 도봉로 353"},
-{num:18,name:"신나는",address:"서울 강서구 공항대로 168"},
-{num:19,name:"참스타대리점",address:"서울 강서구 양천로 583"},
-{num:20,name:"도일대리점",address:"서울 강서구 양천로 556"},
-{num:21,name:"염창대리점",address:"서울 강서구 양천로 706"},
-{num:22,name:"상록수대리점",address:"서울 강서구 강서로 254"},
-{num:23,name:"상록수대리점",address:"서울 강서구 강서로 242"},
-{num:24,name:"백두대간대리점",address:"서울 강서구 양천로 86"},
-{num:25,name:"동진대리점",address:"서울 강서구 강서로 279"},
-{num:26,name:"연우대리점",address:"서울 강서구 월정로 160"},
-{num:27,name:"정원대리점",address:"서울 광진구 구의강변로 64"},
-{num:28,name:"CD대리점",address:"서울 광진구 천호대로 597"},
-{num:29,name:"광장대리점",address:"서울 광진구 면목로 160"},
-{num:30,name:"울림터대리점",address:"서울 광진구 아차산로 220"},
-{num:31,name:"알리바바대리점",address:"서울 광진구 천호대로143길 23"},
-{num:32,name:"아토",address:"서울 광진구 천호대로 571"},
-{num:33,name:"CD대리점",address:"서울 구로구 경인로 661"},
-{num:34,name:"구로서부대리점",address:"서울 구로구 구로동로 82"},
-{num:35,name:"PS&M",address:"서울 구로구 경인로 661"},
-{num:36,name:"PS&M",address:"서울 구로구 도림로 73"},
-{num:37,name:"독산대리점",address:"서울 금천구 시흥대로 233"},
-{num:38,name:"어프레쉬대리점",address:"서울 금천구 시흥대로138길 19"},
-{num:39,name:"지은대리점",address:"서울 금천구 벚꽃로 234"},
-{num:40,name:"서울ent대리점",address:"서울 노원구 한글비석로 384"},
-{num:41,name:"알파대리점",address:"서울 노원구 석계로 4"},
-{num:42,name:"신창대리점",address:"서울 도봉구 덕릉로 248-1"},
-{num:43,name:"서울신당대리점",address:"서울 동대문구 천호대로 14"},
-{num:44,name:"707",address:"서울 마포구 월드컵로 62"},
-{num:45,name:"울림터대리점",address:"서울 마포구 양화로 45"},
-{num:46,name:"퓨처스",address:"서울 마포구 모래내로 5"},
-{num:47,name:"논현역대리점",address:"서울 서초구 사평대로55길 149"},
-{num:48,name:"미래대리점",address:"서울 성동구 마장로 284-1"},
-{num:49,name:"한유대리점",address:"서울 성동구 아차산로 33"},
-{num:50,name:"SK모바일포탈",address:"서울 성동구 아차산로 38"},
-{num:51,name:"늘푸른대리점",address:"서울 성북구 동소문로 17"},
-{num:52,name:"정릉대리점",address:"서울 성북구 보국문로 81"},
-{num:53,name:"알파대리점",address:"서울 성북구 길음로 33"},
-{num:54,name:"ACE대리점",address:"서울 성북구 화랑로 248"},
-{num:55,name:"PS&M",address:"서울 성북구 아리랑로 10"},
-{num:56,name:"브레인아이씨티",address:"서울 송파구 법원로11길 11"},
-{num:57,name:"에스알",address:"서울 송파구 법원로8길 7"},
-{num:58,name:"참스타대리점",address:"서울 양천구 남부순환로 585"},
-{num:59,name:"한유대리점",address:"서울 양천구 목동동로 379"},
-{num:60,name:"에스알",address:"서울 양천구 지양로 74"},
-{num:61,name:"백두대간대리점",address:"서울 양천구 목동서로 349"},
-{num:62,name:"서울ent대리점",address:"서울 영등포구 도영로 27"},
-{num:63,name:"유통상가대리점",address:"서울 영등포구 영등포로 131"},
-{num:64,name:"유원대리점",address:"서울 영등포구 선유로49길 23"},
-{num:65,name:"새샘대리점",address:"서울 영등포구 당산로 83"},
-{num:66,name:"펜타곤",address:"서울 용산구 한강대로7길 10-8"},
-{num:67,name:"프리스비",address:"서울 용산구 한강대로 283-8"},
-{num:68,name:"피앤씨홀딩스",address:"서울 용산구 이태원로 187"},
-{num:69,name:"한유대리점",address:"서울 은평구 연서로 75"},
-{num:70,name:"범교대리점",address:"서울 은평구 수색로 195"},
-{num:71,name:"신드롬대리점",address:"서울 은평구 서오릉로 173"},
-{num:72,name:"참스타대리점",address:"서울 종로구 송월길 99"},
-{num:73,name:"유니쿱대리점",address:"서울 종로구 성균관로 15"},
-{num:74,name:"유선대리점",address:"서울 중구 다산로 132"},
-{num:75,name:"프리스비",address:"서울 중구 동호로 180"},
-{num:76,name:"Orange",address:"서울 중구 명동3길 6"},
-{num:77,name:"피앤씨홀딩스",address:"서울 중랑구 용마산로115길 127"},
-{num:78,name:"PS&M",address:"서울 중랑구 동일로 801"}
+    {num:1,name:"신도SDR",address:"서울 강남구 테헤란로88길 14"},
+    {num:2,name:"큰사랑대리점",address:"서울 강남구 언주로30길 21"},
+    {num:3,name:"한유대리점",address:"서울 강남구 광평로51길 8"},
+    {num:4,name:"새서울대리점",address:"서울 강남구 압구정로 154"},
+    {num:5,name:"강남스타대리점",address:"서울 강남구 선릉로 640"},
+    {num:6,name:"강남스타대리점",address:"서울 강남구 일원로 41"},
+    {num:7,name:"강남스타대리점",address:"서울 강남구 선릉로 640"},
+    {num:8,name:"라이즈",address:"서울 강남구 논현로154길 16"},
+    {num:9,name:"오아시스",address:"서울 강동구 천호옛길 70"},
+    {num:10,name:"준대리점",address:"서울 강동구 천호대로 1099"},
+    {num:11,name:"트렌드플래너",address:"서울 강동구 천호옛길 70"},
+    {num:12,name:"서울ent대리점",address:"서울 강동구 강동대로53길 31"},
+    {num:13,name:"서울ent대리점",address:"서울 강동구 강동대로53길 31"},
+    {num:14,name:"아리온",address:"서울 강동구 상암로 47"},
+    {num:15,name:"늘봄대리점",address:"서울 강동구 성내로 6"},
+    {num:16,name:"피앤씨홀딩스",address:"서울 강북구 삼양로 237"},
+    {num:17,name:"PS&M",address:"서울 강북구 도봉로 353"},
+    {num:18,name:"신나는",address:"서울 강서구 공항대로 168"},
+    {num:19,name:"참스타대리점",address:"서울 강서구 양천로 583"},
+    {num:20,name:"도일대리점",address:"서울 강서구 양천로 556"},
+    {num:21,name:"염창대리점",address:"서울 강서구 양천로 706"},
+    {num:22,name:"상록수대리점",address:"서울 강서구 강서로 254"},
+    {num:23,name:"상록수대리점",address:"서울 강서구 강서로 242"},
+    {num:24,name:"백두대간대리점",address:"서울 강서구 양천로 86"},
+    {num:25,name:"동진대리점",address:"서울 강서구 강서로 279"},
+    {num:26,name:"연우대리점",address:"서울 강서구 월정로 160"},
+    {num:27,name:"정원대리점",address:"서울 광진구 구의강변로 64"},
+    {num:28,name:"CD대리점",address:"서울 광진구 천호대로 597"},
+    {num:29,name:"광장대리점",address:"서울 광진구 면목로 160"},
+    {num:30,name:"울림터대리점",address:"서울 광진구 아차산로 220"},
+    {num:31,name:"알리바바대리점",address:"서울 광진구 천호대로143길 23"},
+    {num:32,name:"아토",address:"서울 광진구 천호대로 571"},
+    {num:33,name:"CD대리점",address:"서울 구로구 경인로 661"},
+    {num:34,name:"구로서부대리점",address:"서울 구로구 구로동로 82"},
+    {num:35,name:"PS&M",address:"서울 구로구 경인로 661"},
+    {num:36,name:"PS&M",address:"서울 구로구 도림로 73"},
+    {num:37,name:"독산대리점",address:"서울 금천구 시흥대로 233"},
+    {num:38,name:"어프레쉬대리점",address:"서울 금천구 시흥대로138길 19"},
+    {num:39,name:"지은대리점",address:"서울 금천구 벚꽃로 234"},
+    {num:40,name:"서울ent대리점",address:"서울 노원구 한글비석로 384"},
+    {num:41,name:"알파대리점",address:"서울 노원구 석계로 4"},
+    {num:42,name:"신창대리점",address:"서울 도봉구 덕릉로 248-1"},
+    {num:43,name:"서울신당대리점",address:"서울 동대문구 천호대로 14"},
+    {num:44,name:"707",address:"서울 마포구 월드컵로 62"},
+    {num:45,name:"울림터대리점",address:"서울 마포구 양화로 45"},
+    {num:46,name:"퓨처스",address:"서울 마포구 모래내로 5"},
+    {num:47,name:"논현역대리점",address:"서울 서초구 사평대로55길 149"},
+    {num:48,name:"미래대리점",address:"서울 성동구 마장로 284-1"},
+    {num:49,name:"한유대리점",address:"서울 성동구 아차산로 33"},
+    {num:50,name:"SK모바일포탈",address:"서울 성동구 아차산로 38"},
+    {num:51,name:"늘푸른대리점",address:"서울 성북구 동소문로 17"},
+    {num:52,name:"정릉대리점",address:"서울 성북구 보국문로 81"},
+    {num:53,name:"알파대리점",address:"서울 성북구 길음로 33"},
+    {num:54,name:"ACE대리점",address:"서울 성북구 화랑로 248"},
+    {num:55,name:"PS&M",address:"서울 성북구 아리랑로 10"},
+    {num:56,name:"브레인아이씨티",address:"서울 송파구 법원로11길 11"},
+    {num:57,name:"에스알",address:"서울 송파구 법원로8길 7"},
+    {num:58,name:"참스타대리점",address:"서울 양천구 남부순환로 585"},
+    {num:59,name:"한유대리점",address:"서울 양천구 목동동로 379"},
+    {num:60,name:"에스알",address:"서울 양천구 지양로 74"},
+    {num:61,name:"백두대간대리점",address:"서울 양천구 목동서로 349"},
+    {num:62,name:"서울ent대리점",address:"서울 영등포구 도영로 27"},
+    {num:63,name:"유통상가대리점",address:"서울 영등포구 영등포로 131"},
+    {num:64,name:"유원대리점",address:"서울 영등포구 선유로49길 23"},
+    {num:65,name:"새샘대리점",address:"서울 영등포구 당산로 83"},
+    {num:66,name:"펜타곤",address:"서울 용산구 한강대로7길 10-8"},
+    {num:67,name:"프리스비",address:"서울 용산구 한강대로 283-8"},
+    {num:68,name:"피앤씨홀딩스",address:"서울 용산구 이태원로 187"},
+    {num:69,name:"한유대리점",address:"서울 은평구 연서로 75"},
+    {num:70,name:"범교대리점",address:"서울 은평구 수색로 195"},
+    {num:71,name:"신드롬대리점",address:"서울 은평구 서오릉로 173"},
+    {num:72,name:"참스타대리점",address:"서울 종로구 송월길 99"},
+    {num:73,name:"유니쿱대리점",address:"서울 종로구 성균관로 15"},
+    {num:74,name:"유선대리점",address:"서울 중구 다산로 132"},
+    {num:75,name:"프리스비",address:"서울 중구 동호로 180"},
+    {num:76,name:"Orange",address:"서울 중구 명동3길 6"},
+    {num:77,name:"피앤씨홀딩스",address:"서울 중랑구 용마산로115길 127"},
+    {num:78,name:"PS&M",address:"서울 중랑구 동일로 801"}
 ];
 
-let visitData = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
-let map;
+// 데이터 저장용 객체 (방문여부 + 코멘트)
+let storeData = JSON.parse(localStorage.getItem('ncsi_store_data')) || {};
+let map, infoWindow;
 
-function saveData(){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(visitData));
-}
-
+// 진행률 업데이트 함수
 function updateProgress(){
-  const total = stores.length;
-  const done = Object.values(visitData).filter(v => v?.visited).length;
-  const percent = total ? Math.round((done/total)*100) : 0;
-  document.getElementById("progress").innerText =
-    `완료율 ${done}/${total} (${percent}%)`;
+    const total = stores.length;
+    const done = Object.values(storeData).filter(s => s.visited).length;
+    const percent = Math.round((done/total)*100);
+    
+    document.getElementById("progress-text").innerHTML = `방문 완료: ${done} / ${total} (${percent}%)`;
+    document.getElementById("progress-bar-fill").style.width = percent + "%";
+    localStorage.setItem('ncsi_store_data', JSON.stringify(storeData));
 }
 
 naver.maps.onJSContentLoaded = function(){
+    map = new naver.maps.Map("map", {
+        center: new naver.maps.LatLng(37.5665, 126.9780),
+        zoom: 11
+    });
+    infoWindow = new naver.maps.InfoWindow({
+        backgroundColor: "#fff",
+        borderColor: "#ccc",
+        borderWidth: 1,
+        disableAnchor: true,
+        pixelOffset: new naver.maps.Point(0, -10)
+    });
 
-  map = new naver.maps.Map("map", {
-    center: new naver.maps.LatLng(37.55,126.97),
-    zoom: 11
-  });
+    const bounds = new naver.maps.LatLngBounds();
 
-  const bounds = new naver.maps.LatLngBounds();
+    stores.forEach((store, index) => {
+        setTimeout(() => {
+            naver.maps.Service.geocode({query: store.address}, function(status, res){
+                if(status !== naver.maps.Service.Status.OK) return;
 
-  stores.forEach((store,index)=>{
+                const pos = new naver.maps.LatLng(res.v2.addresses[0].y, res.v2.addresses[0].x);
+                bounds.extend(pos);
 
-    setTimeout(()=>{
+                // 초기 데이터 설정
+                if (!storeData[store.num]) {
+                    storeData[store.num] = { visited: false, comment: "" };
+                }
 
-      naver.maps.Service.geocode(
-        {query:store.address},
-        function(status,res){
+                const marker = new naver.maps.Marker({
+                    position: pos,
+                    map: map,
+                    icon: {
+                        content: `<div class="bubble ${storeData[store.num].visited ? 'visited' : ''}" id="b-${store.num}">${store.num}. ${store.name}</div>`,
+                        anchor: new naver.maps.Point(0, 0)
+                    }
+                });
 
-          if(status !== naver.maps.Service.Status.OK) return;
+                // 클릭 시 상세창 열기
+                naver.maps.Event.addListener(marker, "click", () => {
+                    const data = storeData[store.num];
+                    const contentString = `
+                        <div class="info-window">
+                            <div class="info-title">${store.num}. ${store.name}</div>
+                            <button id="btn-status-${store.num}" class="info-status-btn ${data.visited ? 'status-visited' : 'status-unvisited'}">
+                                ${data.visited ? '방문 완료' : '미방문 (클릭 시 완료)'}
+                            </button>
+                            <textarea id="comment-${store.num}" class="comment-area" maxlength="500" placeholder="여기에 코멘트를 입력하세요 (최대 500자)">${data.comment}</textarea>
+                            <div class="char-count"><span id="count-${store.num}">${data.comment.length}</span>/500</div>
+                            <button class="save-btn" onclick="saveStoreInfo(${store.num})">저장하기</button>
+                        </div>
+                    `;
+                    infoWindow.setContent(contentString);
+                    infoWindow.open(map, pos);
 
-          const addr = res.v2.addresses[0];
-          const pos = new naver.maps.LatLng(addr.y, addr.x);
-          bounds.extend(pos);
+                    // 상태 버튼 이벤트
+                    document.getElementById(`btn-status-${store.num}`).addEventListener('click', function() {
+                        data.visited = !data.visited;
+                        this.innerText = data.visited ? '방문 완료' : '미방문 (클릭 시 완료)';
+                        this.className = `info-status-btn ${data.visited ? 'status-visited' : 'status-unvisited'}`;
+                        const bubbleEl = document.getElementById(`b-${store.num}`);
+                        if (data.visited) bubbleEl.classList.add('visited');
+                        else bubbleEl.classList.remove('visited');
+                        updateProgress();
+                    });
 
-          if(!visitData[store.num]){
-            visitData[store.num] = { visited:false, comment:"" };
-          }
+                    // 글자수 카운트 이벤트
+                    document.getElementById(`comment-${store.num}`).addEventListener('input', function() {
+                        document.getElementById(`count-${store.num}`).innerText = this.value.length;
+                    });
+                });
 
-          const marker = new naver.maps.Marker({
-            position: pos,
-            map: map,
-            icon:{
-              content:`
-                <div class="bubble ${visitData[store.num].visited ? 'visited' : ''}" id="b-${store.num}">
-                  ${store.num}. ${store.name}
-                </div>
-              `,
-              anchor: new naver.maps.Point(50,40)
-            }
-          });
-
-          const info = new naver.maps.InfoWindow();
-
-          naver.maps.Event.addListener(marker,"click",()=>{
-
-            const current = visitData[store.num];
-
-            info.setContent(`
-              <div style="padding:10px;width:220px;">
-                <b>${store.num}. ${store.name}</b><br>
-                <small>${store.address}</small><br>
-                <button onclick="toggleVisit(${store.num})">
-                  ${current.visited ? "미방문으로 변경" : "완료로 등록"}
-                </button>
-                <textarea maxlength="500"
-                  placeholder="500자 이내 코멘트 입력"
-                  oninput="updateComment(${store.num}, this.value)"
-                >${current.comment || ""}</textarea>
-                <div style="font-size:12px;color:#666;">
-                  ${current.comment?.length || 0}/500자
-                </div>
-              </div>
-            `);
-
-            info.open(map, marker);
-          });
-
-          if(index === stores.length-1){
-            map.fitBounds(bounds);
-            updateProgress();
-          }
-        }
-      );
-
-    }, index*40);
-
-  });
+                if(index === stores.length - 1) {
+                    map.fitBounds(bounds);
+                    updateProgress();
+                }
+            });
+        }, index * 40);
+    });
 };
 
-function toggleVisit(num){
-  visitData[num].visited = !visitData[num].visited;
-  saveData();
-  updateProgress();
-
-  const el = document.getElementById(`b-${num}`);
-  el.classList.toggle("visited");
-}
-
-function updateComment(num, value){
-  visitData[num].comment = value;
-  saveData();
+// 데이터 저장 함수
+function saveStoreInfo(num) {
+    const comment = document.getElementById(`comment-${num}`).value;
+    storeData[num].comment = comment;
+    updateProgress();
+    alert('저장되었습니다.');
+    infoWindow.close();
 }
 </script>
-
 </body>
 </html>
-
