@@ -18,80 +18,6 @@
 html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', sans-serif; }
 #map { width:100vw; height:100vh; }
 
-/* 로그인 화면 */
-#login-screen {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
-}
-
-#login-box {
-  background: #fff;
-  padding: 40px;
-  border-radius: 16px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-  text-align: center;
-  width: 90%;
-  max-width: 350px;
-}
-
-#login-box h2 {
-  margin: 0 0 30px 0;
-  color: #333;
-  font-size: 24px;
-}
-
-#password-input {
-  width: 100%;
-  padding: 12px;
-  border: 2px solid #ddd;
-  border-radius: 8px;
-  font-size: 16px;
-  box-sizing: border-box;
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-#password-input:focus {
-  outline: none;
-  border-color: #667eea;
-}
-
-#login-btn {
-  width: 100%;
-  padding: 12px;
-  background: #667eea;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: .2s;
-}
-
-#login-btn:hover {
-  background: #5568d3;
-}
-
-#error-msg {
-  color: #d32f2f;
-  font-size: 14px;
-  margin-top: 10px;
-  display: none;
-}
-
-.hidden {
-  display: none !important;
-}
-
 #progress {
   position:absolute;
   top:10px;
@@ -360,24 +286,11 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
 
 <body>
 
-<!-- 로그인 화면 -->
-<div id="login-screen">
-  <div id="login-box">
-    <h2>🔐 대리점 방문 지도</h2>
-    <input type="password" id="password-input" placeholder="비밀번호를 입력하세요" />
-    <button id="login-btn">로그인</button>
-    <div id="error-msg">비밀번호가 올바르지 않습니다.</div>
-  </div>
-</div>
-
-<!-- 메인 화면 -->
-<div id="main-screen" class="hidden">
-  <div id="progress">완료율 0%</div>
-  <button id="download-btn" class="action-btn">📥 엑셀 다운로드</button>
-  <button id="ai-analyze-btn" class="action-btn">🤖 AI 분석</button>
-  <div id="loading">처리 중...</div>
-  <div id="map"></div>
-</div>
+<div id="progress">완료율 0%</div>
+<button id="download-btn" class="action-btn">📥 엑셀 다운로드</button>
+<button id="ai-analyze-btn" class="action-btn">🤖 AI 분석</button>
+<div id="loading">처리 중...</div>
+<div id="map"></div>
 
 <!-- 방문 정보 모달 -->
 <div id="modal">
@@ -419,31 +332,6 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
 </div>
 
 <script>
-// ============================================
-// 비밀번호 인증
-// ============================================
-const PASSWORD = "33";
-
-function checkPassword() {
-  const input = document.getElementById('password-input').value;
-  if (input === PASSWORD) {
-    document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('main-screen').classList.remove('hidden');
-    initializeApp();
-  } else {
-    document.getElementById('error-msg').style.display = 'block';
-    document.getElementById('password-input').value = '';
-    document.getElementById('password-input').focus();
-  }
-}
-
-document.getElementById('login-btn').addEventListener('click', checkPassword);
-document.getElementById('password-input').addEventListener('keypress', function(e) {
-  if (e.key === 'Enter') {
-    checkPassword();
-  }
-});
-
 // ============================================
 // Firebase 설정
 // ============================================
@@ -877,6 +765,9 @@ async function initializeApp() {
     naver.maps.onJSContentLoaded();
   }
 }
+
+// 페이지 로드 시 자동 실행
+window.addEventListener('DOMContentLoaded', initializeApp);
 </script>
 
 </body>
