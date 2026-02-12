@@ -9,30 +9,31 @@
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Malgun Gothic', dotum, sans-serif; }
         #map { width: 100vw; height: 100vh; background-color: #f0f0f0; }
         
-        /* 라벨 스타일: 매장이 많으므로 가독성과 콤팩트함 유지 */
-        .label-container {
+        /* 매장 번호와 이름을 표시하는 라벨 스타일 */
+        .store-label {
             position: relative;
-            background: #ff4d4d;
-            color: white;
-            border: 1px solid #b30000;
-            border-radius: 4px;
-            padding: 2px 6px;
-            font-size: 11px;
+            background: #ffffff;
+            color: #333;
+            border: 2px solid #ff4d4d; /* 대리점 느낌의 붉은 테두리 */
+            border-radius: 20px; /* 둥근 캡슐 모양 */
+            padding: 4px 10px;
+            font-size: 12px;
             font-weight: bold;
             white-space: nowrap;
-            box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-            pointer-events: none;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            text-align: center;
         }
 
-        .label-container::after {
+        /* 라벨 아래 화살표 (말풍선 효과) */
+        .store-label::after {
             content: '';
             position: absolute;
-            bottom: -4px;
+            bottom: -8px;
             left: 50%;
             transform: translateX(-50%);
-            border-top: 4px solid #ff4d4d;
-            border-left: 4px solid transparent;
-            border-right: 4px solid transparent;
+            border-top: 8px solid #ff4d4d;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
         }
     </style>
 </head>
@@ -136,22 +137,18 @@ naver.maps.onJSContentLoaded = function() {
             const result = response.v2.addresses[0];
             const point = new naver.maps.LatLng(result.y, result.x);
 
-            // 미니멀한 마커 (빨간 점)
+            // 1. 기존 익숙한 물방울 모양 마커 사용
             new naver.maps.Marker({
                 position: point,
-                map: map,
-                icon: {
-                    content: '<div style="width:10px; height:10px; background:#b30000; border:2px solid #fff; border-radius:50%;"></div>',
-                    anchor: new naver.maps.Point(5, 5)
-                }
+                map: map
             });
 
-            // 번호와 이름 라벨
+            // 2. 마커 바로 위에 [번호. 대리점명] 표시 (말풍선 형태)
             new naver.maps.CustomOverlay({
                 position: point,
-                content: `<div class="label-container">${store.num}. ${store.name}</div>`,
+                content: `<div class="store-label">${store.num}. ${store.name}</div>`,
                 map: map,
-                yAnchor: 1.6
+                yAnchor: 2.2 // 마커 위로 띄우기 위한 위치 조절
             });
         });
     });
