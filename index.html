@@ -15,8 +15,82 @@
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
 <style>
-html, body { margin:0; padding:0; height:100%; }
+html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', sans-serif; }
 #map { width:100vw; height:100vh; }
+
+/* 로그인 화면 */
+#login-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+#login-box {
+  background: #fff;
+  padding: 40px;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+  text-align: center;
+  width: 90%;
+  max-width: 350px;
+}
+
+#login-box h2 {
+  margin: 0 0 30px 0;
+  color: #333;
+  font-size: 24px;
+}
+
+#password-input {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  box-sizing: border-box;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+#password-input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+#login-btn {
+  width: 100%;
+  padding: 12px;
+  background: #667eea;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: .2s;
+}
+
+#login-btn:hover {
+  background: #5568d3;
+}
+
+#error-msg {
+  color: #d32f2f;
+  font-size: 14px;
+  margin-top: 10px;
+  display: none;
+}
+
+.hidden {
+  display: none !important;
+}
 
 #progress {
   position:absolute;
@@ -234,10 +308,23 @@ html, body { margin:0; padding:0; height:100%; }
 
 <body>
 
-<div id="progress">완료율 0%</div>
-<button id="download-btn">📥 엑셀 다운로드</button>
-<div id="loading">저장 중...</div>
-<div id="map"></div>
+<!-- 로그인 화면 -->
+<div id="login-screen">
+  <div id="login-box">
+    <h2>🔐 대리점 방문 지도</h2>
+    <input type="password" id="password-input" placeholder="비밀번호를 입력하세요" />
+    <button id="login-btn">로그인</button>
+    <div id="error-msg">비밀번호가 올바르지 않습니다.</div>
+  </div>
+</div>
+
+<!-- 메인 화면 -->
+<div id="main-screen" class="hidden">
+  <div id="progress">완료율 0%</div>
+  <button id="download-btn">📥 엑셀 다운로드</button>
+  <div id="loading">저장 중...</div>
+  <div id="map"></div>
+</div>
 
 <!-- 모달 -->
 <div id="modal">
@@ -266,6 +353,36 @@ html, body { margin:0; padding:0; height:100%; }
 </div>
 
 <script>
+// ============================================
+// 비밀번호 인증
+// ============================================
+const PASSWORD = "33";
+
+function checkPassword() {
+  const input = document.getElementById('password-input').value;
+  if (input === PASSWORD) {
+    // 로그인 성공
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('main-screen').classList.remove('hidden');
+    initializeApp();
+  } else {
+    // 로그인 실패
+    document.getElementById('error-msg').style.display = 'block';
+    document.getElementById('password-input').value = '';
+    document.getElementById('password-input').focus();
+  }
+}
+
+// 로그인 버튼 클릭
+document.getElementById('login-btn').addEventListener('click', checkPassword);
+
+// Enter 키로 로그인
+document.getElementById('password-input').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') {
+    checkPassword();
+  }
+});
+
 // ============================================
 // Firebase 설정
 // ============================================
@@ -374,7 +491,6 @@ let map;
 // Firebase 함수들
 // ============================================
 
-// Firestore에서 데이터 불러오기
 async function loadDataFromFirebase() {
   try {
     const snapshot = await db.collection('stores').get();
@@ -389,7 +505,6 @@ async function loadDataFromFirebase() {
   }
 }
 
-// Firestore에 데이터 저장하기
 async function saveDataToFirebase(storeNum, data) {
   showLoading(true);
   try {
@@ -403,12 +518,10 @@ async function saveDataToFirebase(storeNum, data) {
   }
 }
 
-// 로딩 표시
 function showLoading(show) {
   document.getElementById('loading').style.display = show ? 'block' : 'none';
 }
 
-// 모든 말풍선 업데이트
 function updateAllBubbles() {
   Object.keys(storeData).forEach(num => {
     const bubble = document.getElementById(`b-${num}`);
@@ -423,13 +536,9 @@ function updateAllBubbles() {
 // ============================================
 
 function downloadExcel() {
-  // 엑셀 데이터 생성
   const excelData = [];
-  
-  // 헤더 추가
   excelData.push(['넘버', '대리점 이름', '대리점 주소', '완료 여부', '코멘트']);
   
-  // 각 매장 데이터 추가
   stores.forEach(store => {
     const data = storeData[store.num] || {visited: false, comment: ""};
     excelData.push([
@@ -441,32 +550,25 @@ function downloadExcel() {
     ]);
   });
   
-  // 워크시트 생성
   const ws = XLSX.utils.aoa_to_sheet(excelData);
-  
-  // 열 너비 설정
   ws['!cols'] = [
-    {wch: 8},   // A열: 넘버
-    {wch: 25},  // B열: 대리점 이름
-    {wch: 35},  // C열: 대리점 주소
-    {wch: 12},  // D열: 완료 여부
-    {wch: 50}   // E열: 코멘트
+    {wch: 8},
+    {wch: 25},
+    {wch: 35},
+    {wch: 12},
+    {wch: 50}
   ];
   
-  // 워크북 생성
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '대리점 방문 현황');
   
-  // 파일명 생성 (현재 날짜 포함)
   const today = new Date();
   const dateStr = `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}`;
   const filename = `대리점_방문현황_${dateStr}.xlsx`;
   
-  // 다운로드
   XLSX.writeFile(wb, filename);
 }
 
-// 다운로드 버튼 이벤트
 document.getElementById('download-btn').addEventListener('click', downloadExcel);
 
 // ============================================
@@ -516,10 +618,8 @@ async function saveModal(){
   const data = {visited, comment, updatedAt: new Date().toISOString()};
   storeData[currentStore] = data;
   
-  // Firebase에 저장
   await saveDataToFirebase(currentStore, data);
   
-  // 말풍선 스타일 업데이트
   const bubble = document.getElementById(`b-${currentStore}`);
   if(visited){
     bubble.classList.add("visited");
@@ -537,10 +637,9 @@ function updateCharCount(){
   document.getElementById("char-count").innerText = `${count}/500`;
 }
 
-// 모달 이벤트
-document.querySelector(".modal-btn.cancel").addEventListener("click", closeModal);
-document.querySelector(".modal-btn.save").addEventListener("click", saveModal);
-document.getElementById("comment-input").addEventListener("input", updateCharCount);
+document.querySelector(".modal-btn.cancel").addEventListener('click', closeModal);
+document.querySelector(".modal-btn.save").addEventListener('click', saveModal);
+document.getElementById("comment-input").addEventListener('input', updateCharCount);
 
 document.querySelectorAll(".status-btn").forEach(btn => {
   btn.addEventListener("click", function(){
@@ -556,65 +655,69 @@ document.getElementById("modal").addEventListener("click", function(e){
 });
 
 // ============================================
-// 지도 초기화
+// 앱 초기화 (로그인 후 실행)
 // ============================================
 
-naver.maps.onJSContentLoaded = async function(){
-  // Firebase에서 데이터 먼저 불러오기
+async function initializeApp() {
   await loadDataFromFirebase();
   
-  map = new naver.maps.Map("map", {
-    center: new naver.maps.LatLng(37.55,126.97),
-    zoom: 11
-  });
+  naver.maps.onJSContentLoaded = function(){
+    map = new naver.maps.Map("map", {
+      center: new naver.maps.LatLng(37.55,126.97),
+      zoom: 11
+    });
 
-  const bounds = new naver.maps.LatLngBounds();
+    const bounds = new naver.maps.LatLngBounds();
 
-  stores.forEach((store,index)=>{
-    // 초기 데이터 설정 (Firebase에 없으면)
-    if (!storeData[store.num]) {
-      storeData[store.num] = {visited: false, comment: ""};
-    }
+    stores.forEach((store,index)=>{
+      if (!storeData[store.num]) {
+        storeData[store.num] = {visited: false, comment: ""};
+      }
 
-    setTimeout(()=>{
-      naver.maps.Service.geocode(
-        {query:store.address},
-        function(status,res){
-          if(status !== naver.maps.Service.Status.OK) return;
+      setTimeout(()=>{
+        naver.maps.Service.geocode(
+          {query:store.address},
+          function(status,res){
+            if(status !== naver.maps.Service.Status.OK) return;
 
-          const addr = res.v2.addresses[0];
-          const pos = new naver.maps.LatLng(addr.y, addr.x);
-          bounds.extend(pos);
+            const addr = res.v2.addresses[0];
+            const pos = new naver.maps.LatLng(addr.y, addr.x);
+            bounds.extend(pos);
 
-          const isVisited = storeData[store.num].visited ? 'visited' : '';
+            const isVisited = storeData[store.num].visited ? 'visited' : '';
 
-          const marker = new naver.maps.Marker({
-            position: pos,
-            map: map,
-            icon:{
-              content:`
-                <div class="bubble ${isVisited}" id="b-${store.num}">
-                  ${store.num}. ${store.name}
-                </div>
-              `,
-              anchor: new naver.maps.Point(50,40)
+            const marker = new naver.maps.Marker({
+              position: pos,
+              map: map,
+              icon:{
+                content:`
+                  <div class="bubble ${isVisited}" id="b-${store.num}">
+                    ${store.num}. ${store.name}
+                  </div>
+                `,
+                anchor: new naver.maps.Point(50,40)
+              }
+            });
+
+            naver.maps.Event.addListener(marker,"click",()=>{
+              openModal(store.num);
+            });
+
+            if(index === stores.length-1){
+              map.fitBounds(bounds);
+              updateProgress();
             }
-          });
-
-          naver.maps.Event.addListener(marker,"click",()=>{
-            openModal(store.num);
-          });
-
-          if(index === stores.length-1){
-            map.fitBounds(bounds);
-            updateProgress();
           }
-        }
-      );
-    }, index*40);
-
-  });
-};
+        );
+      }, index*40);
+    });
+  };
+  
+  // Naver Maps가 이미 로드되어 있으면 즉시 실행
+  if (typeof naver !== 'undefined' && naver.maps) {
+    naver.maps.onJSContentLoaded();
+  }
+}
 </script>
 
 </body>
