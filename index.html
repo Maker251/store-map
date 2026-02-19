@@ -842,10 +842,19 @@ function updateMarkerLabels(zoom) {
       `;
     }
     
-    markerObj.marker.setIcon({
-      content: content,
-      anchor: new naver.maps.Point(15, 15)
-    });
+    let anchorPoint;
+if (zoom >= 13) {
+  // 텍스트 버전: 기존 위치 유지
+  anchorPoint = new naver.maps.Point(50, 40);
+} else {
+  // 원 버전: 원의 중심
+  anchorPoint = new naver.maps.Point(10, 10);
+}
+
+markerObj.marker.setIcon({
+  content: content,
+  anchor: anchorPoint
+});
   });
 }
 
@@ -1158,6 +1167,7 @@ window.addEventListener('DOMContentLoaded', initializeApp);
 
 </body>
 </html>
+
 
 
 
