@@ -76,8 +76,32 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
   display:none;
 }
 
-/* 말풍선 */
-.bubble {
+/* 말풍선 - 번호만 (줌 아웃) */
+.bubble-simple {
+  position:relative;
+  background:#fff;
+  border:2px solid #d32f2f;
+  border-radius:50%;
+  padding:4px;
+  font-size:10px;
+  font-weight:bold;
+  cursor:pointer;
+  transition:.2s;
+  min-width:24px;
+  min-height:24px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.bubble-simple.visited {
+  border-color:#1976d2;
+  background-color:#e3f2fd;
+  color:#1976d2;
+}
+
+/* 말풍선 - 번호 + 이름 (줌 인) */
+.bubble-full {
   position:relative;
   background:#fff;
   border:2px solid #d32f2f;
@@ -90,13 +114,13 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
   transition:.2s;
 }
 
-.bubble.visited {
+.bubble-full.visited {
   border-color:#1976d2;
   background-color:#e3f2fd;
   color:#1976d2;
 }
 
-.bubble:after {
+.bubble-full:after {
   content:"";
   position:absolute;
   left:50%;
@@ -109,7 +133,7 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
   border-top:8px solid #d32f2f;
 }
 
-.bubble.visited:after {
+.bubble-full.visited:after {
   border-top-color:#1976d2;
 }
 
@@ -746,6 +770,7 @@ const stores = [
 let storeData = {};
 let currentStore = null;
 let map;
+let markers = []; // 마커 저장
 
 // ============================================
 // Firebase 함수들
@@ -788,6 +813,39 @@ function updateAllBubbles() {
     if (bubble && storeData[num].visited) {
       bubble.classList.add('visited');
     }
+  });
+}
+
+// ============================================
+// 줌 레벨에 따른 라벨 업데이트
+// ============================================
+function updateMarkerLabels(zoom) {
+  markers.forEach(markerObj => {
+    const storeNum = markerObj.storeNum;
+    const store = stores.find(s => s.num === storeNum);
+    const isVisited = storeData[storeNum] && storeData[storeNum].visited ? 'visited' : '';
+    
+    let content;
+    if (zoom >= 10) {
+      // 줌 인: 번호 + 이름 표시 (풀 버전)
+      content = `
+        <div class="bubble-full ${isVisited}" id="b-${storeNum}">
+          ${storeNum}. ${store.name}
+        </div>
+      `;
+    } else {
+      // 줌 아웃: 번호만 표시 (간소 버전)
+      content = `
+        <div class="bubble-simple ${isVisited}" id="b-${storeNum}">
+          ${storeNum}
+        </div>
+      `;
+    }
+    
+    markerObj.marker.setIcon({
+      content: content,
+      anchor: new naver.maps.Point(15, 15)
+    });
   });
 }
 
@@ -941,7 +999,6 @@ function openModal(storeNum){
   const store = stores.find(s => s.num === storeNum);
   const data = storeData[storeNum] || {visited: false, comment: ""};
   
-  // 대리점 이름과 주소 함께 표시
   document.getElementById("modal-title").innerHTML = 
     `<div style="margin-bottom: 8px;">${store.num}. ${store.name}</div>
      <div style="font-size: 14px; color: #666; font-weight: normal;">${store.address}</div>`;
@@ -1018,8 +1075,8 @@ async function initializeApp() {
   
   naver.maps.onJSContentLoaded = function(){
     map = new naver.maps.Map("map", {
-      center: new naver.maps.LatLng(36.5, 127.5),  // 대한민국 중심
-      zoom: 7  // 전국이 보이도록 줌 레벨 조정
+      center: new naver.maps.LatLng(36.5, 127.5),
+      zoom: 7
     });
 
     const bounds = new naver.maps.LatLngBounds();
@@ -1040,18 +1097,35 @@ async function initializeApp() {
             bounds.extend(pos);
 
             const isVisited = storeData[store.num].visited ? 'visited' : '';
+            const currentZoom = map.getZoom();
+
+            let content;
+            if (currentZoom >= 10) {
+              content = `
+                <div class="bubble-full ${isVisited}" id="b-${store.num}">
+                  ${store.num}. ${store.name}
+                </div>
+              `;
+            } else {
+              content = `
+                <div class="bubble-simple ${isVisited}" id="b-${store.num}">
+                  ${store.num}
+                </div>
+              `;
+            }
 
             const marker = new naver.maps.Marker({
               position: pos,
               map: map,
               icon:{
-                content:`
-                  <div class="bubble ${isVisited}" id="b-${store.num}">
-                    ${store.num}. ${store.name}
-                  </div>
-                `,
-                anchor: new naver.maps.Point(50,40)
+                content: content,
+                anchor: new naver.maps.Point(15, 15)
               }
+            });
+
+            markers.push({
+              marker: marker,
+              storeNum: store.num
             });
 
             naver.maps.Event.addListener(marker,"click",()=>{
@@ -1064,7 +1138,13 @@ async function initializeApp() {
             }
           }
         );
-      }, index*15);  // 385개 매장이라 간격을 줄임 (40ms → 15ms)
+      }, index*15);
+    });
+
+    // 줌 변경 이벤트 리스너
+    naver.maps.Event.addListener(map, 'zoom_changed', function() {
+      const zoom = map.getZoom();
+      updateMarkerLabels(zoom);
     });
   };
   
@@ -1073,7 +1153,6 @@ async function initializeApp() {
   }
 }
 
-// 페이지 로드 시 자동 실행
 window.addEventListener('DOMContentLoaded', initializeApp);
 </script>
 
