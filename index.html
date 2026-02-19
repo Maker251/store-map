@@ -77,18 +77,18 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
 }
 
 /* 말풍선 - 번호만 (줌 아웃) */
-.bubble-simple {
+..bubble-simple {
   position:relative;
   background:#fff;
   border:2px solid #d32f2f;
   border-radius:50%;
-  padding:4px;
-  font-size:10px;
+  padding:2px;
+  font-size:9px;
   font-weight:bold;
   cursor:pointer;
   transition:.2s;
-  min-width:24px;
-  min-height:24px;
+  min-width:18px;
+  min-height:18px;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -826,7 +826,7 @@ function updateMarkerLabels(zoom) {
     const isVisited = storeData[storeNum] && storeData[storeNum].visited ? 'visited' : '';
     
     let content;
-    if (zoom >= 10) {
+    if (zoom >= 13) {
       // 줌 인: 번호 + 이름 표시 (풀 버전)
       content = `
         <div class="bubble-full ${isVisited}" id="b-${storeNum}">
@@ -1100,7 +1100,7 @@ async function initializeApp() {
             const currentZoom = map.getZoom();
 
             let content;
-            if (currentZoom >= 10) {
+            if (currentZoom >= 13) {
               content = `
                 <div class="bubble-full ${isVisited}" id="b-${store.num}">
                   ${store.num}. ${store.name}
@@ -1158,3 +1158,4 @@ window.addEventListener('DOMContentLoaded', initializeApp);
 
 </body>
 </html>
+
