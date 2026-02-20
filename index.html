@@ -1268,7 +1268,7 @@ document.getElementById("modal").addEventListener("click", function(e){
 // 앱 초기화
 // ============================================
 
-async function initializeApp() {
+async function askChatAI initializeApp() {
   await loadDataFromFirebase();
   
   naver.maps.onJSContentLoaded = function(){
@@ -1355,7 +1355,318 @@ window.addEventListener('DOMContentLoaded', initializeApp);
   // ========== 여기서부터 복사 ==========
 
 // ============================================
-// AI 채팅 UI 기능
+// ============================================
+// AI 에이전트 도구 함수들
+// ============================================
+
+// 도구 정의
+const aiTools = [
+  {
+    name: "get_unvisited_stores",
+    description: "미방문 매장 목록을 조회합니다. 지역으로 필터링 가능합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        region: {
+          type: "string",
+          description: "필터링할 지역 (예: '서울', '강남구', '부산'). 없으면 전체 조회"
+        }
+      }
+    }
+  },
+  {
+    name: "get_visited_stores",
+    description: "방문 완료한 매장 목록을 조회합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        region: {
+          type: "string",
+          description: "필터링할 지역"
+        }
+      }
+    }
+  },
+  {
+    name: "get_completion_rate",
+    description: "지역별 방문 완료율을 계산합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        region: {
+          type: "string",
+          description: "조회할 지역. 없으면 전체 조회"
+        }
+      }
+    }
+  },
+  {
+    name: "get_store_info",
+    description: "특정 매장의 상세 정보를 조회합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        store_number: {
+          type: "integer",
+          description: "조회할 매장 번호"
+        }
+      },
+      required: ["store_number"]
+    }
+  },
+  {
+    name: "get_stores_by_region",
+    description: "특정 지역의 모든 매장을 조회합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        region: {
+          type: "string",
+          description: "조회할 지역"
+        }
+      },
+      required: ["region"]
+    }
+  },
+  {
+    name: "plan_route",
+    description: "여러 매장을 효율적으로 방문할 수 있는 동선을 계획합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        store_numbers: {
+          type: "array",
+          items: { type: "integer" },
+          description: "방문할 매장 번호 배열"
+        }
+      },
+      required: ["store_numbers"]
+    }
+  },
+  {
+    name: "get_region_statistics",
+    description: "전체 지역별 통계를 조회합니다. 시/도별, 구별 분류 가능.",
+    input_schema: {
+      type: "object",
+      properties: {
+        level: {
+          type: "string",
+          enum: ["시도", "구"],
+          description: "통계 레벨: '시도'(서울, 부산 등) 또는 '구'(강남구, 해운대구 등)"
+        }
+      },
+      required: ["level"]
+    }
+  }
+];
+
+// 도구 실행 함수
+function executeAITool(toolName, toolInput) {
+  console.log(`도구 실행: ${toolName}`, toolInput);
+  
+  switch(toolName) {
+    case "get_unvisited_stores":
+      return getUnvisitedStores(toolInput.region);
+      
+    case "get_visited_stores":
+      return getVisitedStores(toolInput.region);
+      
+    case "get_completion_rate":
+      return getCompletionRate(toolInput.region);
+      
+    case "get_store_info":
+      return getStoreInfo(toolInput.store_number);
+      
+    case "get_stores_by_region":
+      return getStoresByRegion(toolInput.region);
+      
+    case "plan_route":
+      return planRoute(toolInput.store_numbers);
+      
+    case "get_region_statistics":
+      return getRegionStatistics(toolInput.level);
+      
+    default:
+      return { error: "알 수 없는 도구입니다." };
+  }
+}
+
+// 1. 미방문 매장 조회
+function getUnvisitedStores(region) {
+  let filtered = stores.filter(store => {
+    const data = storeData[store.num] || { visited: false };
+    return !data.visited;
+  });
+  
+  if (region) {
+    filtered = filtered.filter(store => store.address.includes(region));
+  }
+  
+  return {
+    총개수: filtered.length,
+    매장목록: filtered.map(s => ({
+      번호: s.num,
+      이름: s.name,
+      주소: s.address
+    }))
+  };
+}
+
+// 2. 방문 완료 매장 조회
+function getVisitedStores(region) {
+  let filtered = stores.filter(store => {
+    const data = storeData[store.num] || { visited: false };
+    return data.visited;
+  });
+  
+  if (region) {
+    filtered = filtered.filter(store => store.address.includes(region));
+  }
+  
+  return {
+    총개수: filtered.length,
+    매장목록: filtered.map(s => ({
+      번호: s.num,
+      이름: s.name,
+      주소: s.address,
+      코멘트: storeData[s.num]?.comment || '없음'
+    }))
+  };
+}
+
+// 3. 완료율 계산
+function getCompletionRate(region) {
+  let filtered = stores;
+  
+  if (region) {
+    filtered = stores.filter(store => store.address.includes(region));
+  }
+  
+  const total = filtered.length;
+  const completed = filtered.filter(store => {
+    const data = storeData[store.num] || { visited: false };
+    return data.visited;
+  }).length;
+  
+  return {
+    지역: region || "전체",
+    전체매장: total,
+    완료매장: completed,
+    미방문매장: total - completed,
+    완료율: total > 0 ? Math.round((completed / total) * 100) + "%" : "0%"
+  };
+}
+
+// 4. 매장 정보 조회
+function getStoreInfo(storeNumber) {
+  const store = stores.find(s => s.num === storeNumber);
+  if (!store) return { error: "매장을 찾을 수 없습니다." };
+  
+  const data = storeData[storeNumber] || { visited: false, comment: "" };
+  
+  return {
+    번호: store.num,
+    이름: store.name,
+    주소: store.address,
+    방문상태: data.visited ? "방문완료" : "미방문",
+    코멘트: data.comment || "없음",
+    최종수정일: data.updatedAt || "없음"
+  };
+}
+
+// 5. 지역별 매장 조회
+function getStoresByRegion(region) {
+  const filtered = stores.filter(store => store.address.includes(region));
+  
+  const visited = filtered.filter(s => {
+    const data = storeData[s.num] || { visited: false };
+    return data.visited;
+  }).length;
+  
+  return {
+    지역: region,
+    전체매장: filtered.length,
+    방문완료: visited,
+    미방문: filtered.length - visited,
+    매장목록: filtered.map(s => ({
+      번호: s.num,
+      이름: s.name,
+      주소: s.address,
+      방문완료: storeData[s.num]?.visited ? "완료" : "미방문"
+    }))
+  };
+}
+
+// 6. 동선 계획
+function planRoute(storeNumbers) {
+  const selectedStores = stores.filter(s => storeNumbers.includes(s.num));
+  
+  if (selectedStores.length === 0) {
+    return { error: "선택된 매장이 없습니다." };
+  }
+  
+  // 지역별로 그룹화
+  const grouped = {};
+  selectedStores.forEach(store => {
+    const parts = store.address.split(' ');
+    const region = parts[0] + ' ' + parts[1]; // "서울 강남구"
+    if (!grouped[region]) grouped[region] = [];
+    grouped[region].push({
+      번호: store.num,
+      이름: store.name,
+      주소: store.address
+    });
+  });
+  
+  return {
+    총매장수: selectedStores.length,
+    지역수: Object.keys(grouped).length,
+    지역별그룹: grouped,
+    추천동선: "같은 지역 매장들을 먼저 방문하는 것이 효율적입니다."
+  };
+}
+
+// 7. 지역별 통계
+function getRegionStatistics(level) {
+  const stats = {};
+  
+  stores.forEach(store => {
+    const parts = store.address.split(' ');
+    let key;
+    
+    if (level === "시도") {
+      key = parts[0]; // "서울", "부산" 등
+    } else {
+      key = parts[0] + ' ' + parts[1]; // "서울 강남구" 등
+    }
+    
+    if (!stats[key]) {
+      stats[key] = { 전체: 0, 완료: 0, 미방문: 0 };
+    }
+    
+    stats[key].전체++;
+    
+    const data = storeData[store.num] || { visited: false };
+    if (data.visited) {
+      stats[key].완료++;
+    } else {
+      stats[key].미방문++;
+    }
+  });
+  
+  // 완료율 추가
+  Object.keys(stats).forEach(key => {
+    const s = stats[key];
+    s.완료율 = Math.round((s.완료 / s.전체) * 100) + "%";
+  });
+  
+  return {
+    통계레벨: level,
+    지역수: Object.keys(stats).length,
+    지역별통계: stats
+  };
+}
+  // AI 채팅 UI 기능
 // ============================================
 
 // 채팅창 열기
@@ -1391,23 +1702,139 @@ function addChatMessage(text, isUser = false) {
   // 스크롤을 맨 아래로
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
+// ===== 여기에 추가 ===== //
 
-// 전송 버튼 클릭 (일단 테스트용)
+// AI 에이전트에게 질문하기
+async function askChatAI(question) {
+  // 사용자 메시지 추가
+  addChatMessage(question, true);
+  
+  // 입력창 초기화
+  document.getElementById('chat-input').value = '';
+  
+  // "생각 중..." 메시지 추가
+  const thinkingId = 'thinking-' + Date.now();
+  const messagesDiv = document.getElementById('chat-messages');
+  const thinkingDiv = document.createElement('div');
+  thinkingDiv.id = thinkingId;
+  thinkingDiv.className = 'chat-message ai';
+  thinkingDiv.innerHTML = '<div class="message-bubble">🤔 생각 중...</div>';
+  messagesDiv.appendChild(thinkingDiv);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  
+  // 대화 기록
+  let messages = [{
+    role: 'user',
+    content: question
+  }];
+  
+  try {
+    // 최대 10번 반복 (AI가 여러 도구를 연속으로 사용할 수 있음)
+    for (let i = 0; i < 10; i++) {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 2000,
+          tools: aiTools,
+          messages: messages,
+          system: `당신은 대리점 방문 관리를 돕는 AI 에이전트입니다.
+
+현재 전체 ${stores.length}개 매장 중 ${Object.values(storeData).filter(d => d.visited).length}개를 방문 완료했습니다.
+
+사용 가능한 도구를 활용해서 정확한 데이터를 조회하고 분석해주세요.
+- 지역 검색 시 정확한 도구를 사용하세요
+- 동선 계획 시 지역별로 그룹화하여 제안하세요
+- 통계 요청 시 적절한 레벨(시도/구)로 조회하세요
+
+친절하고 구체적으로 답변해주세요.`
+        })
+      });
+      
+      const result = await response.json();
+      
+      console.log('AI 응답:', result);
+      
+      // 오류 처리
+      if (result.error) {
+        throw new Error(result.error.message || 'API 오류');
+      }
+      
+      // AI가 최종 답변을 한 경우
+      if (result.stop_reason === 'end_turn') {
+        document.getElementById(thinkingId)?.remove();
+        
+        const textContent = result.content.find(c => c.type === 'text');
+        if (textContent) {
+          addChatMessage(textContent.text, false);
+        }
+        break;
+      }
+      
+      // AI가 도구를 사용하는 경우
+      if (result.stop_reason === 'tool_use') {
+        const toolUse = result.content.find(c => c.type === 'tool_use');
+        
+        if (toolUse) {
+          console.log(`도구 사용: ${toolUse.name}`, toolUse.input);
+          
+          // "생각 중..." 메시지 업데이트
+          const thinking = document.getElementById(thinkingId);
+          if (thinking) {
+            thinking.querySelector('.message-bubble').textContent = 
+              `🔧 ${toolUse.name} 실행 중...`;
+          }
+          
+          // 도구 실행
+          const toolResult = executeAITool(toolUse.name, toolUse.input);
+          console.log('도구 결과:', toolResult);
+          
+          // 대화 기록에 추가
+          messages.push({
+            role: 'assistant',
+            content: result.content
+          });
+          
+          messages.push({
+            role: 'user',
+            content: [{
+              type: 'tool_result',
+              tool_use_id: toolUse.id,
+              content: JSON.stringify(toolResult)
+            }]
+          });
+          
+          // 다음 반복에서 AI가 도구 결과를 보고 답변
+          continue;
+        }
+      }
+      
+      // 예상치 못한 상황
+      break;
+    }
+    
+  } catch (error) {
+    console.error('AI 에이전트 오류:', error);
+    document.getElementById(thinkingId)?.remove();
+    addChatMessage(`오류가 발생했습니다: ${error.message}\n\nAPI 키를 확인해주세요.`, false);
+  }
+}
+
+// ===== 여기까지 추가 ===== //
+
+
+// 전송 버튼 클릭
 document.getElementById('send-chat-btn').addEventListener('click', function() {
   const input = document.getElementById('chat-input');
   const message = input.value.trim();
   
   if (message) {
-    // 사용자 메시지 추가
-    addChatMessage(message, true);
-    
-    // 입력창 초기화
-    input.value = '';
-    
-    // AI 응답 (테스트용)
-    setTimeout(() => {
-      addChatMessage('메시지를 받았습니다! 곧 AI 연결을 추가할 예정입니다.', false);
-    }, 500);
+    askChatAI(message);
   }
 });
 
@@ -1424,6 +1851,7 @@ document.getElementById('chat-input').addEventListener('keypress', function(e) {
 
 </body>
 </html>
+
 
 
 
