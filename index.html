@@ -1346,13 +1346,13 @@ async function askChatAI initializeApp() {
     });
   };
   
-  if (typeof naver !== 'undefined' && naver.maps) {
+if (typeof naver !== 'undefined' && naver.maps) {
     naver.maps.onJSContentLoaded();
   }
 }
 
+// 페이지 로드 시 자동 실행
 window.addEventListener('DOMContentLoaded', initializeApp);
-  // ========== 여기서부터 복사 ==========
 
 // ============================================
 // ============================================
@@ -1853,6 +1853,7 @@ document.getElementById('chat-input').addEventListener('keypress', function(e) {
 
 </body>
 </html>
+
 
 
 
