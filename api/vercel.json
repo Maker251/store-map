@@ -1,19 +1,63 @@
 {
-  "headers": [
+  "rewrites": [
     {
-      "source": "/api/(.*)",
-      "headers": [
-        { "key": "Access-Control-Allow-Credentials", "value": "true" },
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET,OPTIONS,PATCH,DELETE,POST,PUT" },
-        { "key": "Access-Control-Allow-Headers", "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version" }
-      ]
+      "source": "/api/:path*",
+      "destination": "/api/:path*"
     }
   ],
-  "functions": {
-    "api/**/*.js": {
-      "memory": 1024,
-      "maxDuration": 30
+  "headers": [
+    {
+      "source": "/api/:path*",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Credentials",
+          "value": "true"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET,DELETE,PATCH,POST,PUT,OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version"
+        }
+      ]
     }
-  }
+  ]
 }
+```
+
+4. **Commit changes**
+
+---
+
+### **Step 2: 재배포 확인**
+
+**Vercel에서:**
+1. Deployments 탭
+2. 새 배포 시작됨
+3. 초록색 ✅ 대기
+
+---
+
+### **Step 3: 다시 테스트**
+
+**완료 후:**
+- 사이트 강력 새로고침 (Ctrl + Shift + R)
+- 개발자 도구 Console 탭 열기
+- AI 채팅 시도
+- 오류 메시지 확인
+
+---
+
+## 💡 만약 여전히 안 된다면
+
+**Vercel URL을 직접 테스트해봅시다:**
+
+브라우저 주소창에 입력:
+```
+https://store-map-git-main-maker251s-projects.vercel.app/api/chat
