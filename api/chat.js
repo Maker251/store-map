@@ -1,23 +1,26 @@
 export default async function handler(req, res) {
-  // CORS 헤더 설정 (가장 먼저!)
+  // CORS 헤더 (모든 요청에 대해)
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,DELETE,PATCH,POST,PUT,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
 
-  // OPTIONS 요청 (preflight) 처리
+  // OPTIONS 요청 (preflight) - 즉시 200 응답
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    return res.status(200).end();
   }
 
-  // POST 요청만 허용
+  // POST 요청 처리
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
     const { messages, tools } = req.body;
+
+    if (!messages) {
+      return res.status(400).json({ error: 'Messages are required' });
+    }
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -36,17 +39,21 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Anthropic API error: ${response.status} - ${errorText}`);
+      console.error('Anthropic API error:', errorText);
+      return res.status(response.status).json({ 
+        error: `Anthropic API error: ${response.status}`,
+        details: errorText
+      });
     }
 
     const data = await response.json();
-    res.status(200).json(data);
+    return res.status(200).json(data);
 
   } catch (error) {
-    console.error('AI API Error:', error);
-    res.status(500).json({ 
-      error: error.message,
-      type: 'api_error'
+    console.error('Server error:', error);
+    return res.status(500).json({ 
+      error: error.message || 'Internal server error',
+      type: 'server_error'
     });
   }
 }
