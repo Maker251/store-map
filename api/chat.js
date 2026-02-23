@@ -1,11 +1,11 @@
 export default async function handler(req, res) {
-  // CORS 설정
-  res.setHeader('Access-Control-Allow-Credentials', true);
+  // CORS 헤더 설정 (가장 먼저!)
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Content-Type');
 
-  // OPTIONS 요청 처리
+  // OPTIONS 요청 (preflight) 처리
   if (req.method === 'OPTIONS') {
     res.status(200).end();
     return;
@@ -34,11 +34,19 @@ export default async function handler(req, res) {
       })
     });
 
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Anthropic API error: ${response.status} - ${errorText}`);
+    }
+
     const data = await response.json();
     res.status(200).json(data);
 
   } catch (error) {
     console.error('AI API Error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      error: error.message,
+      type: 'api_error'
+    });
   }
 }
