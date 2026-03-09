@@ -1574,21 +1574,30 @@ ${JSON.stringify(analysisData, null, 2)}
     
     if (result.content && result.content[0]) {
       const analysis = result.content[0].text;
-      document.getElementById('ai-result').innerHTML = `<div style="white-space: pre-wrap; line-height: 1.8;">${analysis}</div>`;
+      const resultDiv = document.getElementById('ai-result');
+      resultDiv.innerHTML = '';
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = 'white-space: pre-wrap; line-height: 1.8;';
+      wrapper.textContent = analysis;
+      resultDiv.appendChild(wrapper);
     } else {
       throw new Error('분석 결과를 받지 못했습니다.');
     }
     
   } catch (error) {
     console.error('AI 분석 오류:', error);
-    document.getElementById('ai-result').innerHTML = `
-      <div style="color: #d32f2f; padding: 20px; text-align: center;">
-        <p><strong>⚠️ AI 분석에 실패했습니다</strong></p>
-        <p style="font-size: 14px; margin-top: 10px;">
-          ${error.message || 'API 연결을 확인해주세요.'}
-        </p>
-      </div>
-    `;
+    const errorDiv = document.getElementById('ai-result');
+    errorDiv.innerHTML = '';
+    const errWrapper = document.createElement('div');
+    errWrapper.style.cssText = 'color: #d32f2f; padding: 20px; text-align: center;';
+    const errTitle = document.createElement('p');
+    errTitle.innerHTML = '<strong>AI 분석에 실패했습니다</strong>';
+    const errMsg = document.createElement('p');
+    errMsg.style.cssText = 'font-size: 14px; margin-top: 10px;';
+    errMsg.textContent = error.message || 'API 연결을 확인해주세요.';
+    errWrapper.appendChild(errTitle);
+    errWrapper.appendChild(errMsg);
+    errorDiv.appendChild(errWrapper);
   }
 }
 
