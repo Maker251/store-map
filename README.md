@@ -91,7 +91,8 @@ service cloud.firestore {
 
 ### Authentication
 
-- Sign-in method에서 **Anonymous** 활성화 필요
+- Authentication 서비스가 활성화되어 있어야 Custom Token 인증이 작동합니다
+- 서비스 계정 키는 Vercel 환경변수(`FIREBASE_PRIVATE_KEY`)로 관리
 
 ## 주요 기능
 
