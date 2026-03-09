@@ -10,6 +10,7 @@
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 
 <!-- SheetJS for Excel -->
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -462,11 +463,48 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
   background: #5568d3;
   transform: scale(1.1);
 }
+
+#login-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.7); z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+}
+#login-box {
+  background: #fff; padding: 40px; border-radius: 12px;
+  text-align: center; min-width: 300px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+#login-box h2 { margin: 0 0 20px; font-size: 20px; color: #333; }
+#login-box input {
+  width: 100%; padding: 12px; font-size: 16px; border: 1px solid #ccc;
+  border-radius: 6px; box-sizing: border-box; margin-bottom: 12px;
+}
+#login-box button {
+  width: 100%; padding: 12px; font-size: 16px; background: #6C7AE0; color: #fff;
+  border: none; border-radius: 6px; cursor: pointer;
+}
+#login-box button:hover { background: #5568d3; }
+#login-error { color: #e74c3c; font-size: 14px; margin-top: 8px; display: none; }
+#logout-btn {
+  position: absolute; top: 10px; left: 10px; z-index: 1000;
+  background: #e74c3c; color: #fff; border: none; padding: 8px 16px;
+  border-radius: 20px; cursor: pointer; font-size: 13px;
+}
+#logout-btn:hover { background: #c0392b; }
 </style>
 </head>
 
 <body>
 
+<div id="login-overlay">
+  <div id="login-box">
+    <h2>대리점 방문 지도</h2>
+    <input type="password" id="login-password" placeholder="비밀번호를 입력하세요" autocomplete="off">
+    <button id="login-btn">로그인</button>
+    <div id="login-error">비밀번호가 올바르지 않습니다.</div>
+  </div>
+</div>
+
+<button id="logout-btn" style="display:none;">로그아웃</button>
 <div id="progress">완료율 0%</div>
 <button id="download-btn" class="action-btn">📥 엑셀 다운로드</button>
 <button id="ai-analyze-btn" class="action-btn">🤖 AI 분석</button>
@@ -558,6 +596,48 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+const auth = firebase.auth();
+const APP_PASSWORD = 'store1234';
+let appInitialized = false;
+
+function hideLoginOverlay() {
+  document.getElementById('login-overlay').style.display = 'none';
+  document.getElementById('logout-btn').style.display = 'block';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const loginBtn = document.getElementById('login-btn');
+  const passwordInput = document.getElementById('login-password');
+  const loginError = document.getElementById('login-error');
+
+  function attemptLogin() {
+    const pw = passwordInput.value;
+    if (pw === APP_PASSWORD) {
+      loginError.style.display = 'none';
+      loginBtn.disabled = true;
+      loginBtn.textContent = '로그인 중...';
+      auth.signInAnonymously().catch(() => {
+        loginBtn.disabled = false;
+        loginBtn.textContent = '로그인';
+        loginError.textContent = '인증에 실패했습니다. 다시 시도해주세요.';
+        loginError.style.display = 'block';
+      });
+    } else {
+      loginError.style.display = 'block';
+      passwordInput.value = '';
+      passwordInput.focus();
+    }
+  }
+
+  loginBtn.addEventListener('click', attemptLogin);
+  passwordInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') attemptLogin();
+  });
+
+  document.getElementById('logout-btn').addEventListener('click', () => {
+    auth.signOut().then(() => location.reload());
+  });
+});
 
 // ============================================
 // 매장 데이터 (385개) - 일부만 표시, 실제로는 전체 385개
@@ -1790,7 +1870,15 @@ async function initializeApp() {
   }
 }
 
-window.addEventListener('DOMContentLoaded', initializeApp);
+window.addEventListener('DOMContentLoaded', () => {
+  auth.onAuthStateChanged((user) => {
+    if (user && !appInitialized) {
+      appInitialized = true;
+      hideLoginOverlay();
+      initializeApp();
+    }
+  });
+});
 </script>
 
 </body>
