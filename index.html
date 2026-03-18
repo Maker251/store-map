@@ -64,6 +64,60 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
   background:#f57c00;
 }
 
+#parking-btn {
+  top:140px;
+  background:#00897b;
+}
+#parking-btn:hover { background:#00695c; }
+#parking-btn.active { background:#004d40; }
+
+#parking-zoom-msg {
+  position:absolute;
+  top:188px;
+  right:10px;
+  z-index:1000;
+  background:rgba(0,0,0,0.75);
+  color:#fff;
+  padding:8px 14px;
+  border-radius:16px;
+  font-size:12px;
+  display:none;
+  white-space:nowrap;
+  box-shadow:0 2px 8px rgba(0,0,0,.3);
+}
+
+/* 공영주차장 마커 */
+.parking-bubble {
+  position:relative;
+  background:#e8f5e9;
+  border:2px solid #2e7d32;
+  border-radius:6px;
+  padding:4px 9px;
+  font-size:11px;
+  font-weight:bold;
+  color:#2e7d32;
+  white-space:nowrap;
+  cursor:default;
+  box-shadow:0 1px 4px rgba(0,0,0,.2);
+}
+.parking-bubble.free {
+  background:#e3f2fd;
+  border-color:#1565c0;
+  color:#1565c0;
+}
+.parking-bubble:after {
+  content:"";
+  position:absolute;
+  left:50%;
+  transform:translateX(-50%);
+  bottom:-7px;
+  width:0; height:0;
+  border-left:5px solid transparent;
+  border-right:5px solid transparent;
+  border-top:7px solid #2e7d32;
+}
+.parking-bubble.free:after { border-top-color:#1565c0; }
+
 #loading {
   position:absolute;
   top:140px;
@@ -508,6 +562,8 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
 <div id="progress">완료율 0%</div>
 <button id="download-btn" class="action-btn">📥 엑셀 다운로드</button>
 <button id="ai-analyze-btn" class="action-btn">🤖 AI 분석</button>
+<button id="parking-btn" class="action-btn">🅿️ 공영주차장 찾기</button>
+<div id="parking-zoom-msg">🔍 줌인 해주세요. 1:100m 이하에서만 작동합니다.</div>
 <div id="loading">처리 중...</div>
 <div id="map"></div>
 
@@ -1884,6 +1940,13 @@ async function initializeApp() {
     naver.maps.Event.addListener(map, 'zoom_changed', function() {
       const zoom = map.getZoom();
       updateMarkerLabels(zoom);
+      updateParkingOnZoom(zoom);
+    });
+
+    naver.maps.Event.addListener(map, 'idle', function() {
+      if (parkingVisible && isParkingZoomOk()) {
+        renderParkingMarkers();
+      }
     });
   };
   
@@ -1901,6 +1964,98 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+
+// ============================================
+// 공영주차장 기능 (주소 기준 중복제거 144개)
+// ============================================
+const PARKING_DATA = [{"name": "휘경마을 공영주차장(구)", "address": "동대문구 휘경동 308-32", "lat": 37.5880691, "lng": 127.05809327, "paid": "유료"}, {"name": "구로디지털단지역 공영주차장(시)", "address": "구로구 구로동 810-3", "lat": 37.48543179, "lng": 126.90124331, "paid": "유료"}, {"name": "구파발역 공영주차장(시)", "address": "은평구 진관동 70-1", "lat": 37.63800702, "lng": 126.91932176, "paid": "유료"}, {"name": "봉천복개3 공영주차장(시)", "address": "관악구 봉천동 1467-3", "lat": 37.48685341, "lng": 126.93319061, "paid": "유료"}, {"name": "독산동 금천교 공영주차장(시)", "address": "금천구 독산동 1081-4", "lat": 37.46654071, "lng": 126.89003194, "paid": "유료"}, {"name": "청계2(북2) 공영주차장(시)", "address": "종로구 관수동 91-4", "lat": 37.56877035, "lng": 126.99578643, "paid": "유료"}, {"name": "청계3(북1) 공영주차장(시)", "address": "종로구 예지동 140-1", "lat": 37.56916536, "lng": 126.99851563, "paid": "유료"}, {"name": "가마산고가밑 공영주차장(시)", "address": "구로구 구로동 414-13", "lat": 37.49274815, "lng": 126.8824956, "paid": "유료"}, {"name": "청계3(남) 공영주차장(시)", "address": "중구 주교동 51-3", "lat": 37.56879022, "lng": 126.99838423, "paid": "유료"}, {"name": "청계6(청평화) 공영주차장(시)", "address": "중구 신당동 217-91 0", "lat": 37.56959414, "lng": 127.01472989, "paid": "유료"}, {"name": "남대문 화물 공영주차장(시)", "address": "중구 남대문로4가 24-1", "lat": 37.56067339, "lng": 126.97701977, "paid": "유료"}, {"name": "신설동 공영주차장(시)", "address": "동대문구 신설동 114-29", "lat": 37.57252061, "lng": 127.02425684, "paid": "유료"}, {"name": "휘경유수지 공영주차장(구)", "address": "동대문구 휘경동 348-0", "lat": 37.58908686, "lng": 127.06977384, "paid": "유료"}, {"name": "후암동주차장(구)", "address": "용산구 후암동 65-4", "lat": 37.55048874, "lng": 126.97648587, "paid": "유료"}, {"name": "영등포구청역 공영주차장(시)", "address": "영등포구 당산동3가 370-3", "lat": 37.52432737, "lng": 126.89548892, "paid": "유료"}, {"name": "잠실역 공영주차장(시)", "address": "송파구 신천동 27-0", "lat": 37.51427683, "lng": 127.10341414, "paid": "유료"}, {"name": "장안2동 공영주차장(시)", "address": "동대문구 장안동 286-9", "lat": 37.5782752, "lng": 127.07061896, "paid": "유료"}, {"name": "당산노외 공영주차장(시)", "address": "영등포구 당산동3가 2-1", "lat": 37.52625065, "lng": 126.89945376, "paid": "유료"}, {"name": "명일동 공영주차장(시)", "address": "강동구 명일동 47-9", "lat": 37.55361065, "lng": 127.15591212, "paid": "유료"}, {"name": "동작대교 공영주차장(시)", "address": "용산구 용산동6가 69-11", "lat": 37.518577, "lng": 126.983287, "paid": "유료"}, {"name": "개화역 공영주차장(시)", "address": "강서구 개화동 664-0", "lat": 37.57798421, "lng": 126.79821222, "paid": "유료"}, {"name": "신대방역 공영주차장(시)", "address": "관악구 신림동 498-0", "lat": 37.48830327, "lng": 126.91452278, "paid": "유료"}, {"name": "구로디지털단지역(상) 공영주차장(시)", "address": "관악구 신림동 1677-5", "lat": 37.48481135, "lng": 126.90323392, "paid": "유료"}, {"name": "학여울 공영주차장(시)", "address": "강남구 대치동 514-1", "lat": 37.49705092, "lng": 127.07239543, "paid": "유료"}, {"name": "일원터널 공영주차장(시)", "address": "강남구 일원동 722-1", "lat": 37.48285728, "lng": 127.07937197, "paid": "유료"}, {"name": "창동역(서) 공영주차장(시)", "address": "도봉구 창동 330-0", "lat": 37.65237042, "lng": 127.04567683, "paid": "유료"}, {"name": "석계역 공영주차장(시)", "address": "노원구 월계동 50-9", "lat": 37.615292, "lng": 127.062997, "paid": "유료"}, {"name": "동구로 공영주차장(시)", "address": "구로구 구로동 94-1", "lat": 37.49510602, "lng": 126.89186155, "paid": "유료"}, {"name": "해군본부앞 공영주차장(시)", "address": "영등포구 신길동 812-0", "lat": 37.50428502, "lng": 126.92085978, "paid": "유료"}, {"name": "가산동 금천교 공영주차장(시)", "address": "금천구 가산동 691-3", "lat": 37.46573721, "lng": 126.8870323, "paid": "유료"}, {"name": "당산고가밑 공영주차장(시)", "address": "영등포구 당산동5가 9-15", "lat": 37.53216832, "lng": 126.90050498, "paid": "유료"}, {"name": "을지로 공영주차장(시)", "address": "중구 을지로3가 282-8", "lat": 37.56617966, "lng": 126.99029444, "paid": "유료"}, {"name": "남산공원 소월로 관광버스전용 주차장(시)", "address": "중구 남대문로5가 450-0", "lat": 37.5539054, "lng": 126.97895109, "paid": "무료"}, {"name": "탑골공원 관광버스전용 주차장(시)", "address": "종로구 종로2가 38-4", "lat": 37.57126963, "lng": 126.98776601, "paid": "무료"}, {"name": "대림노외 공영주차장(시)", "address": "구로구 구로동 120-5", "lat": 37.4928472, "lng": 126.89433148, "paid": "유료"}, {"name": "도봉산역 공영주차장(시)", "address": "도봉구 도봉동 288-19", "lat": 37.68972069, "lng": 127.04483862, "paid": "유료"}, {"name": "동대문 공영주차장(시)", "address": "중구 신당동 251-7", "lat": 37.56710187, "lng": 127.01214106, "paid": "유료"}, {"name": "서울글로벌센터 공영주차장(시)", "address": "종로구 서린동 63-0", "lat": 37.56983402, "lng": 126.98150586, "paid": "유료"}, {"name": "천왕역 공영주차장(시)", "address": "구로구 오류동 174-10", "lat": 37.48728845, "lng": 126.83918316, "paid": "유료"}, {"name": "동국제강 공영주차장(시)", "address": "중구 삼각동 111-1", "lat": 37.56733736, "lng": 126.98343453, "paid": "유료"}, {"name": "DDP동측(양쪽) 관광버스전용 주차장(시)", "address": "중구 을지로7가 2-36", "lat": 37.5658584, "lng": 127.01038319, "paid": "무료"}, {"name": "남대문 초입 관광버스전용 주차장(시)", "address": "중구 남창동 282-10", "lat": 37.55934, "lng": 126.975714, "paid": "무료"}, {"name": "남대문 시장 관광버스전용 주차장(시)", "address": "중구 남창동 51-4", "lat": 37.55942, "lng": 126.975909, "paid": "무료"}, {"name": "영남 공영주차장(시)", "address": "영등포구 영등포동4가 123-0", "lat": 37.51947074, "lng": 126.90260898, "paid": "유료"}, {"name": "청계7가 공영주차장(시)", "address": "종로구 창신동 436-87", "lat": 37.57011017, "lng": 127.01633654, "paid": "유료"}, {"name": "동순라길(종묘) 관광버스전용 주차장(시)", "address": "종로구 인의동 107-1", "lat": 37.57248168, "lng": 126.99663811, "paid": "무료"}, {"name": "청계1(북) 공영주차장(시)", "address": "종로구 관철동 13-14", "lat": 37.56829211, "lng": 126.98857075, "paid": "유료"}, {"name": "청계5(북1) 공영주차장(시)", "address": "종로구 종로5가 458-2", "lat": 37.56982646, "lng": 127.00418389, "paid": "유료"}, {"name": "사직로3 관광버스 주차허용 구간(시)", "address": "종로구 사직동 240-0 (한국갤럽 앞 ~ 풍림스페이스본 버스정류장 전)", "lat": 37.57451943, "lng": 126.96761608, "paid": "무료"}, {"name": "창의문로 관광버스 주차허용 구간(시)", "address": "종로구 청운동 15-57 (벽산빌리지 9동 앞 ~ 청운중학교 100m 앞)", "lat": 37.58889069, "lng": 126.9719219, "paid": "무료"}, {"name": "사직로1 관광버스 주차허용 구간(시)", "address": "종로구 내자동 35-0 내자동 54(치과의원) ~ 필운동 227(금고 앞)", "lat": 37.57605407, "lng": 126.97178954, "paid": "무료"}, {"name": "청계6(북) 공영주차장(시)", "address": "종로구 종로6가 289-49", "lat": 37.56996881, "lng": 127.0105256, "paid": "유료"}, {"name": "창경궁로1 관광버스 주차허용 구간(시)", "address": "종로구 와룡동 2-86 (창경궁주차장~홍화문)", "lat": 37.57930741, "lng": 126.99647211, "paid": "무료"}, {"name": "사직로2 관광버스 주차허용 구간(시)", "address": "종로구 내자동 131-0 내자동136(사직이용원) ~ 내자동75-4(가로등)", "lat": 37.57582091, "lng": 126.97162184, "paid": "무료"}, {"name": "당고개위 공영주차장(시)", "address": "노원구 상계동 111-568", "lat": 37.67037141, "lng": 127.08081155, "paid": "유료"}, {"name": "성내역(잠실나루역) 공영주차장(시)", "address": "송파구 신천동 11-1", "lat": 37.51757312, "lng": 127.10502678, "paid": "유료"}, {"name": "동작대교(위) 공영주차장(시)", "address": "동작구 동작동 316-3", "lat": 37.50515806, "lng": 126.98074142, "paid": "유료"}, {"name": "압구정고가1 공영주차장(시)", "address": "강남구 신사동 668-0", "lat": 37.52591869, "lng": 127.0284366, "paid": "유료"}, {"name": "동호대교(남) 공영주차장(시)", "address": "강남구 압구정동 435-0", "lat": 37.53076162, "lng": 127.02476429, "paid": "유료"}, {"name": "대림역2 공영주차장(시)", "address": "구로구 구로동 73-9", "lat": 37.49365308, "lng": 126.8944617, "paid": "유료"}, {"name": "방화로 공영주차장(시)", "address": "강서구 공항동 796-0", "lat": 37.55290261, "lng": 126.81629941, "paid": "유료"}, {"name": "청계5(동호로_남) 공영주차장(시)", "address": "중구 방산동 4-47 0", "lat": 37.56841363, "lng": 127.0022737, "paid": "유료"}, {"name": "청계3(창경궁로_남) 공영주차장(시)", "address": "중구 주교동 123-1 0", "lat": 37.56745128, "lng": 126.99802254, "paid": "유료"}, {"name": "성산로 관광버스 주차허용 구간(시)", "address": "마포구 성산동 117-1", "lat": 37.56574812, "lng": 126.91325892, "paid": "무료"}, {"name": "청계5(남) 공영주차장(시)", "address": "중구 을지로6가 17-442 0", "lat": 37.56949907, "lng": 127.00724191, "paid": "유료"}, {"name": "훈련원공원 옆(구)", "address": "중구 을지로6가 18-200", "lat": 37.567224, "lng": 127.004636, "paid": "유료"}, {"name": "청계5(방산동) 공영주차장(시)", "address": "중구 방산동 52-1", "lat": 37.56947824, "lng": 127.00275308, "paid": "유료"}, {"name": "남산케이블카 공영주차장(시)", "address": "중구 회현동1가 1-19", "lat": 37.55564592, "lng": 126.98383628, "paid": "유료"}, {"name": "마른내길 공영주차장(시)", "address": "중구 인현동1가 87-10", "lat": 37.5642402, "lng": 126.99512326, "paid": "유료"}, {"name": "남산파출소 공영주차장(시)", "address": "중구 회현동1가 1-16", "lat": 37.55482813, "lng": 126.9820832, "paid": "유료"}, {"name": "남산공원 소파로 관광버스전용 주차장(시)", "address": "중구 남창동 205-107", "lat": 37.55553088, "lng": 126.98014372, "paid": "무료"}, {"name": "청계8가 공영주차장(시)", "address": "중구 흥인동 162-1 0", "lat": 37.56986254, "lng": 127.01686962, "paid": "유료"}, {"name": "소파로케이블카앞 관광버스전용 주차장(시)", "address": "중구 회현동1가 1-15", "lat": 37.5551304, "lng": 126.98369017, "paid": "무료"}, {"name": "청계8가(남) 공영주차장(시)", "address": "성동구 상왕십리동 12-47", "lat": 37.56947991, "lng": 127.0307572, "paid": "유료"}, {"name": "문래1동 공영주차장(시)", "address": "영등포구 문래동3가 54-12", "lat": 37.51348979, "lng": 126.89689264, "paid": "유료"}, {"name": "장충단로(한남광장) 관광버스전용 주차장(시)", "address": "용산구 한남동 9-19", "lat": 37.547311, "lng": 127.00258284, "paid": "무료"}, {"name": "여의서로 공영주차장(시)", "address": "영등포구 여의도동 8-1", "lat": 37.52984274, "lng": 126.91236772, "paid": "유료"}, {"name": "대림역 공영주차장(시)", "address": "영등포구 대림동 808-24", "lat": 37.49246098, "lng": 126.89562459, "paid": "유료"}, {"name": "남부여성발전센터 공영주차장(시)", "address": "금천구 시흥동 139-2", "lat": 37.462917, "lng": 126.905718, "paid": "유료"}, {"name": "신방화역 공영주차장(시)", "address": "강서구 마곡동 739-0", "lat": 37.56706812, "lng": 126.81757628, "paid": "유료"}, {"name": "진흥로 공영주차장(시)", "address": "은평구 역촌동 41-8", "lat": 37.60100188, "lng": 126.9198952, "paid": "유료"}, {"name": "온수역(남) 공영주차장(시)", "address": "구로구 온수동 51-26", "lat": 37.49154412, "lng": 126.82522499, "paid": "유료"}, {"name": "옥수역 공영주차장(시)", "address": "성동구 옥수동 401-1", "lat": 37.54201946, "lng": 127.01695354, "paid": "유료"}, {"name": "돈화문로 공영주차장(시)", "address": "중구 을지로3가 296-24", "lat": 37.561823, "lng": 126.993251, "paid": "유료"}, {"name": "도봉로 15길 공영주차장(시)", "address": "강북구 미아동 458-7", "lat": 37.61666406, "lng": 127.02875783, "paid": "유료"}, {"name": "원효대교 남단 공영주차장(시)", "address": "영등포구 여의도동 5-0", "lat": 37.52221459, "lng": 126.93677696, "paid": "유료"}, {"name": "가양라이품 공영주차장(시)", "address": "강서구 가양동 1457-1", "lat": 37.57155732, "lng": 126.84165292, "paid": "유료"}, {"name": "마른내로 공영주차장(시)", "address": "중구 오장동 69-3", "lat": 37.56448822, "lng": 126.99924162, "paid": "유료"}, {"name": "회기역주변 공영주차장(구)", "address": "동대문구 휘경동 320-4", "lat": 37.58999461, "lng": 127.05637018, "paid": "유료"}, {"name": "창경궁로2 관광버스 주차허용 구간(시)", "address": "종로구 와룡동 2-86 (홍화문~선인문)", "lat": 37.57883612, "lng": 126.99653803, "paid": "무료"}, {"name": "APM플레이스 앞 관광버스 주차허용 구간(시)", "address": "중구 을지로7가 112-3", "lat": 37.565663, "lng": 127.008624, "paid": "무료"}, {"name": "세종대로3 관광버스 승하차 허용 구간(시)", "address": "중구 태평로2가 113-1 (신협 ~ 세븐일레븐)", "lat": 37.56332742, "lng": 126.97695956, "paid": "무료"}, {"name": "토정로 관광버스 주차허용 구간(시)", "address": "마포구 합정동 5-12", "lat": 37.54528507, "lng": 126.91892377, "paid": "무료"}, {"name": "모래내로 관광버스 주차허용 구간(시)", "address": "서대문구 남가좌동 318-11", "lat": 37.57366792, "lng": 126.92352214, "paid": "무료"}, {"name": "청계8가(북) 공영주차장(시)", "address": "동대문구 신설동 109-2", "lat": 37.57022454, "lng": 127.02969195, "paid": "유료"}, {"name": "보라매상업 공영주차장(시)", "address": "동작구 신대방동 431-3", "lat": 37.49039184, "lng": 126.92340595, "paid": "유료"}, {"name": "세종대로1 관광버스 승하차 허용 구간(시)", "address": "중구 태평로1가 60-22 (코리아나호텔 주차장 입구 ~ 시의회 앞)", "lat": 37.56722138, "lng": 126.97687079, "paid": "무료"}, {"name": "세종대로2 관광버스 승하차 허용 구간(시)", "address": "중구 정동 5-5 (정동 5-5(시청역 2번 출구 앞)", "lat": 37.56593287, "lng": 126.97694237, "paid": "무료"}, {"name": "영동6교밑 공영주차장(시)", "address": "강남구 대치동 512-1", "lat": 37.49425147, "lng": 127.07107299, "paid": "유료"}, {"name": "배오개길 공영주차장(시)", "address": "중구 예관동 22-1", "lat": 37.56506793, "lng": 126.9983419, "paid": "유료"}, {"name": "신월4동 공영주차장(시)", "address": "양천구 신월동 411-1", "lat": 37.525643, "lng": 126.837692, "paid": "유료"}, {"name": "삼각지고가밑 공영주차장(시)", "address": "용산구 문배동 12-1", "lat": 37.53695311, "lng": 126.969849, "paid": "유료"}, {"name": "세종로 공영주차장(시)", "address": "종로구 세종로 80-1", "lat": 37.57340269, "lng": 126.97588429, "paid": "유료"}, {"name": "종묘주차장 공영주차장(시)", "address": "종로구 훈정동 2-0", "lat": 37.57150398, "lng": 126.99496888, "paid": "유료"}, {"name": "훈련원공원 공영주차장(시)", "address": "중구 을지로5가 40-3", "lat": 37.56740014, "lng": 127.00352062, "paid": "유료"}, {"name": "한강진역 공영주차장(시)", "address": "용산구 한남동 728-27", "lat": 37.53952176, "lng": 127.00257963, "paid": "유료"}, {"name": "용산주차빌딩 공영주차장(시)", "address": "용산구 한강로2가 12-9", "lat": 37.53436379, "lng": 126.96541818, "paid": "유료"}, {"name": "웃우물 공영주차장(시)", "address": "양천구 신정동 943-25", "lat": 37.52379759, "lng": 126.85141746, "paid": "유료"}, {"name": "목동체비지 공영주차장(시)", "address": "양천구 목동 908-26", "lat": 37.53679354, "lng": 126.8806468, "paid": "유료"}, {"name": "방화역(서) 공영주차장(시)", "address": "강서구 방화동 829-1", "lat": 37.57757395, "lng": 126.81217459, "paid": "유료"}, {"name": "방화역(동) 공영주차장(시)", "address": "강서구 방화동 830-4", "lat": 37.57730116, "lng": 126.81331479, "paid": "유료"}, {"name": "개화산역 공영주차장(시)", "address": "강서구 방화동 845-0", "lat": 37.57224302, "lng": 126.80518976, "paid": "유료"}, {"name": "가양3동 공영주차장(시)", "address": "강서구 가양동 1488-12", "lat": 37.56033753, "lng": 126.85977547, "paid": "유료"}, {"name": "가양역 공영주차장(시)", "address": "강서구 가양동 1480-10", "lat": 37.56332959, "lng": 126.85308175, "paid": "유료"}, {"name": "효봉공영주차장(구)", "address": "금천구 시흥동 3-129", "lat": 37.46077721, "lng": 126.91096477, "paid": "유료"}, {"name": "일원역 공영주차장(시)", "address": "강남구 일원동 716-2", "lat": 37.48468629, "lng": 127.08408987, "paid": "유료"}, {"name": "사당노외 공영주차장(시)", "address": "서초구 방배동 507-1", "lat": 37.47543791, "lng": 126.98377372, "paid": "유료"}, {"name": "수서역북 공영주차장(시)", "address": "강남구 수서동 735-0", "lat": 37.48801285, "lng": 127.09994995, "paid": "유료"}, {"name": "신천유수지 공영주차장(시)", "address": "송파구 신천동 14-0", "lat": 37.52231457, "lng": 127.10290327, "paid": "유료"}, {"name": "복정역 공영주차장(시)", "address": "송파구 장지동 600-2", "lat": 37.47005293, "lng": 127.1277329, "paid": "유료"}, {"name": "남산한옥마을 공영주차장(시)", "address": "중구 필동2가 83-1", "lat": 37.56005799, "lng": 126.99316078, "paid": "유료"}, {"name": "도봉산 공영주차장(시)", "address": "도봉구 도봉동 282-26", "lat": 37.6876442, "lng": 127.04066026, "paid": "유료"}, {"name": "볕우물 공영주차장(시)", "address": "강동구 암사동 473-3", "lat": 37.55237413, "lng": 127.13512275, "paid": "유료"}, {"name": "천호역 공영주차장(시)", "address": "강동구 천호동 455-0", "lat": 37.53849749, "lng": 127.12512853, "paid": "유료"}, {"name": "남산예장 관광버스전용 주차장(시)", "address": "중구 예장동 4-1", "lat": 37.559821, "lng": 126.989076, "paid": "유료"}, {"name": "장안1동 공영주차장(시)", "address": "동대문구 장안동 392-3", "lat": 37.56941, "lng": 127.066994, "paid": "유료"}, {"name": "면목유수지 공영주차장(시)", "address": "중랑구 면목동 168-2", "lat": 37.579494, "lng": 127.081451, "paid": "유료"}, {"name": "훈련원공원 앞 관광버스 전용 주차장(시)", "address": "중구 을지로5가 40-2", "lat": 37.5668065, "lng": 127.003961, "paid": "무료"}, {"name": "DDP 유어스빌딩 앞 관광버스 주차허용 구간(시)", "address": "중구 신당동 204-92", "lat": 37.56782, "lng": 127.0118, "paid": "무료"}, {"name": "성촌공원 남측 관광버스 주차허용 구간(시)", "address": "용산구 이촌동 173-1", "lat": 37.53045496, "lng": 126.9537275, "paid": "무료"}, {"name": "성암로 관광버스 주차허용 구간(시)", "address": "마포구 상암동 1695-0", "lat": 37.581002, "lng": 126.892587, "paid": "무료"}, {"name": "이태원 입구 관광버스 승하차 허용 구간(시)", "address": "용산구 이태원동 56-4", "lat": 37.534136392, "lng": 126.9892919, "paid": "무료"}, {"name": "신세계면세점 명동점 앞 관광버스 승하차 허용 구간(시)", "address": "중구 충무로1가 52-47 (신세계면세점 명동점 옆)", "lat": 37.56002165, "lng": 126.9811522, "paid": "무료"}, {"name": "효자로 관광버스 주차허용 구간(시)", "address": "종로구 궁정동 15-0 (청운효자동 주민센터 ~ 무궁화동산 앞)", "lat": 37.5838, "lng": 126.9723, "paid": "무료"}, {"name": "여의도공원 공영주차장(시)", "address": "영등포구 여의도동 2-11", "lat": 37.5219, "lng": 126.9173, "paid": "유료"}, {"name": "난지중앙로노상공영주차장(시)", "address": "마포구 상암동 481-94", "lat": 37.568052, "lng": 126.879504, "paid": "유료"}, {"name": "휘경유수지(구)", "address": "동대문구 휘경동 7-18", "lat": 37.58988, "lng": 127.069266, "paid": "유료"}, {"name": "효자 공영주차장(구)", "address": "종로구 효자동 68-1", "lat": 37.583098, "lng": 126.970726, "paid": "유료"}, {"name": "회기역 주변 노상공영주차장(구)", "address": "동대문구 휘경동 255-3", "lat": 37.5900744, "lng": 127.0590554, "paid": "유료"}, {"name": "회기역 주변 노상공영주차장(구)", "address": "동대문구 휘경동 320-7", "lat": 37.589982, "lng": 127.056515, "paid": "유료"}, {"name": "회기역 주변 노상공영주차장(구)", "address": "동대문구 휘경동 269-7", "lat": 37.5900904, "lng": 127.0593639, "paid": "유료"}, {"name": "회기역 주변 노상공영주차장(구)", "address": "동대문구 휘경동 191-5", "lat": 37.590041, "lng": 127.056897, "paid": "유료"}, {"name": "舊MBC뒤(구)", "address": "영등포구 여의도동 3-0", "lat": 37.5233246, "lng": 126.9316188, "paid": "유료"}, {"name": "파미에(반포천) 주차장(시)", "address": "서초구 반포동 118-3", "lat": 37.504517, "lng": 127.007933, "paid": "유료"}];
+
+let parkingMarkers = [];
+let parkingVisible = false;
+const PARKING_MIN_ZOOM = 13; // 줌 13 이상 = 1:100m 이하
+
+function isParkingZoomOk() {
+  return map && map.getZoom() >= PARKING_MIN_ZOOM;
+}
+
+function showParkingZoomMsg() {
+  const msg = document.getElementById('parking-zoom-msg');
+  msg.style.display = 'block';
+  clearTimeout(window._parkingMsgTimer);
+  window._parkingMsgTimer = setTimeout(() => {
+    msg.style.display = 'none';
+  }, 2500);
+}
+
+function clearParkingMarkers() {
+  parkingMarkers.forEach(m => m.setMap(null));
+  parkingMarkers = [];
+}
+
+function renderParkingMarkers() {
+  if (!map) return;
+  clearParkingMarkers();
+  const bounds = map.getBounds();
+
+  PARKING_DATA.forEach(p => {
+    const pos = new naver.maps.LatLng(p.lat, p.lng);
+    if (!bounds.hasLatLng(pos)) return;
+
+    const isFree = p.paid === '무료';
+    const cls = isFree ? 'parking-bubble free' : 'parking-bubble';
+    const label = isFree ? `🅿️ ${p.name}<br><span style="font-weight:normal;font-size:10px;">무료</span>` 
+                         : `🅿️ ${p.name}`;
+
+    const marker = new naver.maps.Marker({
+      position: pos,
+      map: map,
+      icon: {
+        content: `<div class="${cls}" title="${p.address}">${label}</div>`,
+        anchor: new naver.maps.Point(60, 30)
+      },
+      zIndex: 50
+    });
+
+    parkingMarkers.push(marker);
+  });
+}
+
+function toggleParking() {
+  if (!isParkingZoomOk()) {
+    showParkingZoomMsg();
+    return;
+  }
+
+  parkingVisible = !parkingVisible;
+  const btn = document.getElementById('parking-btn');
+
+  if (parkingVisible) {
+    btn.classList.add('active');
+    btn.textContent = '🅿️ 주차장 숨기기';
+    renderParkingMarkers();
+  } else {
+    btn.classList.remove('active');
+    btn.textContent = '🅿️ 공영주차장 찾기';
+    clearParkingMarkers();
+  }
+}
+
+function updateParkingOnZoom(zoom) {
+  if (!parkingVisible) return;
+  if (zoom < PARKING_MIN_ZOOM) {
+    parkingVisible = false;
+    const btn = document.getElementById('parking-btn');
+    btn.classList.remove('active');
+    btn.textContent = '🅿️ 공영주차장 찾기';
+    clearParkingMarkers();
+    showParkingZoomMsg();
+  } else {
+    renderParkingMarkers();
+  }
+}
+
+document.getElementById('parking-btn').addEventListener('click', toggleParking);
+
 </script>
 
 </body>
