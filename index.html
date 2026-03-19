@@ -70,20 +70,6 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
 #parking-btn:hover { background:#00695c; }
 #parking-btn.active { background:#004d40; }
 
-#parking-zoom-msg {
-  position:absolute;
-  top:188px;
-  right:10px;
-  z-index:1000;
-  background:rgba(0,0,0,0.75);
-  color:#fff;
-  padding:8px 14px;
-  border-radius:16px;
-  font-size:12px;
-  display:none;
-  white-space:nowrap;
-  box-shadow:0 2px 8px rgba(0,0,0,.3);
-}
 
 .parking-bubble {
   position:relative;
@@ -555,7 +541,6 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
 <button id="download-btn" class="action-btn">📥 엑셀 다운로드</button>
 <button id="ai-analyze-btn" class="action-btn">🤖 AI 분석</button>
 <button id="parking-btn" class="action-btn">🅿️ 공영주차장 찾기</button>
-<div id="parking-zoom-msg">줌인하세요. 1:100m 이하에서만 표시합니다.</div>
 <div id="loading">처리 중...</div>
 <div id="map"></div>
 
@@ -1985,18 +1970,7 @@ function isParkingZoomOk() {
   return map && map.getZoom() >= PARKING_MIN_ZOOM;
 }
 
-function showParkingZoomMsg() {
-  const msg = document.getElementById('parking-zoom-msg');
-  msg.style.display = 'block';
-  clearTimeout(window._parkingMsgTimer);
-  window._parkingMsgTimer = setTimeout(() => { msg.style.display = 'none'; }, 3000);
-}
 
-function hideParkingZoomMsg() {
-  const msg = document.getElementById('parking-zoom-msg');
-  clearTimeout(window._parkingMsgTimer);
-  msg.style.display = 'none';
-}
 
 function clearParkingMarkers() {
   parkingMarkers.forEach(m => m.setMap(null));
@@ -2093,11 +2067,8 @@ function startGeocodeAll() {
 
 function toggleParking() {
   if (!isParkingZoomOk()) {
-    showParkingZoomMsg();
     return;
   }
-  hideParkingZoomMsg();
-
   parkingVisible = !parkingVisible;
   const btn = document.getElementById('parking-btn');
 
@@ -2123,10 +2094,8 @@ function updateParkingOnZoom(zoom) {
       btn.textContent = '🅿️ 공영주차장 찾기';
       clearParkingMarkers();
     }
-    showParkingZoomMsg();
-  } else {
+    } else {
     // 줌 1:100m 이하: 표시 중이면 bounds 갱신
-    hideParkingZoomMsg();
     if (parkingVisible && !parkingLoading) {
       renderParkingFromCache();
     }
