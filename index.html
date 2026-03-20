@@ -226,6 +226,29 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
   color:#555;
 }
 
+.modal-input {
+  width:100%;
+  padding:10px;
+  border:2px solid #ddd;
+  border-radius:8px;
+  font-size:14px;
+  box-sizing:border-box;
+  font-family:inherit;
+  transition:.2s;
+}
+.modal-input:focus {
+  outline:none;
+  border-color:#4caf50;
+}
+.modal-row {
+  display:flex;
+  gap:10px;
+}
+.modal-row .modal-section {
+  flex:1;
+  margin-bottom:0;
+}
+
 .status-buttons {
   display:flex;
   gap:8px;
@@ -557,6 +580,17 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
       </div>
     </div>
     
+    <div class="modal-row">
+      <div class="modal-section">
+        <label>담당자</label>
+        <input type="text" id="manager-input" class="modal-input" placeholder="담당자 이름" maxlength="20">
+      </div>
+      <div class="modal-section">
+        <label>방문 날짜</label>
+        <input type="date" id="visit-date-input" class="modal-input">
+      </div>
+    </div>
+
     <div class="modal-section">
       <label>코멘트 (500자 이내)</label>
       <textarea id="comment-input" maxlength="500" placeholder="방문 후기나 메모를 입력하세요..."></textarea>
@@ -1688,7 +1722,7 @@ function updateAllBubbles() {
 // ============================================
 function downloadExcel() {
   const excelData = [];
-  excelData.push(['넘버', '대리점 이름', '대리점 주소', '완료 여부', '코멘트']);
+  excelData.push(['넘버', '대리점 이름', '대리점 주소', '완료 여부', '담당자', '방문 날짜', '코멘트']);
   
   stores.forEach(store => {
     const data = storeData[store.num] || {visited: false, comment: ""};
@@ -1697,6 +1731,8 @@ function downloadExcel() {
       store.name,
       store.address,
       data.visited ? '완료' : '미방문',
+      data.manager || '',
+      data.visitDate || '',
       data.comment || ''
     ]);
   });
@@ -1707,6 +1743,8 @@ function downloadExcel() {
     {wch: 30},
     {wch: 50},
     {wch: 12},
+    {wch: 15},
+    {wch: 15},
     {wch: 50}
   ];
   
@@ -1749,6 +1787,20 @@ function openModal(storeNum){
     }
   });
   
+  document.getElementById("manager-input").value = data.manager || "";
+
+  // 날짜: 저장된 값 있으면 복원, 없으면 오늘 날짜 기본값
+  const visitDateEl = document.getElementById("visit-date-input");
+  if (data.visitDate) {
+    visitDateEl.value = data.visitDate;
+  } else {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth()+1).padStart(2,'0');
+    const dd = String(today.getDate()).padStart(2,'0');
+    visitDateEl.value = `${yyyy}-${mm}-${dd}`;
+  }
+
   const textarea = document.getElementById("comment-input");
   textarea.value = data.comment || "";
   updateCharCount();
@@ -1765,8 +1817,10 @@ async function saveModal(){
   const visitedBtn = document.querySelector(".status-btn.active");
   const visited = visitedBtn ? visitedBtn.dataset.status === "true" : false;
   const comment = document.getElementById("comment-input").value;
+  const manager = document.getElementById("manager-input").value.trim();
+  const visitDate = document.getElementById("visit-date-input").value;
   
-  const data = {visited, comment, updatedAt: new Date().toISOString()};
+  const data = {visited, comment, manager, visitDate, updatedAt: new Date().toISOString()};
   storeData[currentStore] = data;
   
   await saveDataToFirebase(currentStore, data);
