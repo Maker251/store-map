@@ -1183,6 +1183,23 @@ const aiTools = [
       },
       required: ["level"]
     }
+  },
+  {
+    name: "find_nearby_parking",
+    description: "특정 매장 번호 또는 주소 근처의 공영주차장을 조회합니다. 반경(미터) 지정 가능.",
+    input_schema: {
+      type: "object",
+      properties: {
+        store_number: {
+          type: "integer",
+          description: "매장 번호. 이 값이 있으면 해당 매장 좌표 기준으로 검색"
+        },
+        radius: {
+          type: "integer",
+          description: "검색 반경 (미터 단위, 기본값 500)"
+        }
+      }
+    }
   }
 ];
 
@@ -1213,6 +1230,9 @@ function executeAITool(toolName, toolInput) {
       
     case "get_region_statistics":
       return getRegionStatistics(toolInput.level);
+
+    case "find_nearby_parking":
+      return findNearbyParking(toolInput.store_number, toolInput.radius);
       
     default:
       return { error: "알 수 없는 도구입니다." };
@@ -1387,6 +1407,65 @@ function getRegionStatistics(level) {
 }
 
 // ============================================
+// 공영주차장 근처 검색 (브라우저 메모리에서 직접 조회)
+// ============================================
+function findNearbyParking(storeNumber, radius) {
+  radius = radius || 500; // 기본 500m
+
+  // 매장 좌표 찾기 (markers 배열에서)
+  const markerObj = markers.find(m => m.storeNum === storeNumber);
+  if (!markerObj) {
+    // geocoding 캐시에서 직접 찾기
+    const store = stores.find(s => s.num === storeNumber);
+    if (!store) return { error: `${storeNumber}번 매장을 찾을 수 없습니다.` };
+    return { error: `${storeNumber}번 매장(${store.name})의 좌표가 아직 로드되지 않았습니다. 지도에서 해당 매장을 먼저 확인해주세요.` };
+  }
+
+  const storeLat = markerObj.marker.getPosition().lat();
+  const storeLng = markerObj.marker.getPosition().lng();
+  const store = stores.find(s => s.num === storeNumber);
+
+  // parkingGeocoded에서 반경 내 주차장 필터링
+  const cachedParking = Object.values(parkingGeocoded);
+  if (cachedParking.length === 0) {
+    return {
+      매장번호: storeNumber,
+      매장이름: store?.name,
+      안내: "공영주차장 데이터가 아직 로드되지 않았습니다. '공영주차장 찾기' 버튼을 먼저 클릭해주세요."
+    };
+  }
+
+  // 위경도 거리 계산 (Haversine)
+  function getDistanceM(lat1, lng1, lat2, lng2) {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  const nearby = cachedParking
+    .map(p => ({ ...p, 거리m: Math.round(getDistanceM(storeLat, storeLng, p.lat, p.lng)) }))
+    .filter(p => p.거리m <= radius)
+    .sort((a, b) => a.거리m - b.거리m);
+
+  return {
+    매장번호: storeNumber,
+    매장이름: store?.name,
+    매장주소: store?.address,
+    검색반경: radius + "m",
+    검색된주차장수: nearby.length,
+    주차장목록: nearby.map(p => ({
+      이름: p.name,
+      주소: p.address,
+      거리: p.거리m + "m"
+    }))
+  };
+}
+
+// ============================================
 // Vercel AI API 호출 함수
 // ============================================
 async function askChatAI(question) {
@@ -1415,6 +1494,7 @@ async function askChatAI(question) {
 - 지역 검색 시 정확한 도구를 사용하세요
 - 동선 계획 시 지역별로 그룹화하여 제안하세요
 - 통계 요청 시 적절한 레벨(시도/구)로 조회하세요
+- 매장 근처 주차장 요청 시 find_nearby_parking 도구를 사용하세요 (반경 기본 500m)
 
 친절하고 구체적으로 답변해주세요.`;
   
