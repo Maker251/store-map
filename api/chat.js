@@ -37,7 +37,7 @@ function checkRateLimit(ip) {
 
 // 입력 검증
 const MAX_MESSAGES = 30;
-const MAX_MESSAGE_LENGTH = 5000;
+const MAX_MESSAGE_LENGTH = 10000; // 분석 시 데이터가 크므로 넉넉하게
 
 function validateMessages(messages) {
   if (!Array.isArray(messages) || messages.length === 0) {
@@ -47,7 +47,8 @@ function validateMessages(messages) {
     return `messages exceeds maximum of ${MAX_MESSAGES}`;
   }
   for (const msg of messages) {
-    if (!msg.role || !['user', 'assistant'].includes(msg.role)) {
+    // system, user, assistant 모두 허용
+    if (!msg.role || !['user', 'assistant', 'system'].includes(msg.role)) {
       return 'invalid message role';
     }
     if (typeof msg.content === 'string' && msg.content.length > MAX_MESSAGE_LENGTH) {
@@ -122,6 +123,20 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: validationError });
     }
 
+    // system 메시지는 Anthropic API의 system 파라미터로 분리
+    const systemMsg = messages.find(m => m.role === 'system');
+    const chatMessages = messages.filter(m => m.role !== 'system');
+
+    const requestBody = {
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2000,
+      messages: chatMessages,
+      tools: ALLOWED_TOOLS
+    };
+    if (systemMsg) {
+      requestBody.system = systemMsg.content;
+    }
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -129,12 +144,7 @@ export default async function handler(req, res) {
         'x-api-key': process.env.ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01'
       },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2000,
-        messages: messages,
-        tools: ALLOWED_TOOLS
-      })
+      body: JSON.stringify(requestBody)
     });
 
     if (!response.ok) {
