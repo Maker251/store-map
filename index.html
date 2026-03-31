@@ -345,23 +345,24 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
 
 /* AI 채팅 사이드바 */
 #ai-sidebar {
-  position: fixed;
+  position: fixed !important;
   top: 0 !important;
-  bottom: 0 !important;
-  right: -420px;
-  width: 400px;
-  height: 100vh;
+  right: -420px !important;
+  width: 400px !important;
+  height: 100% !important;
   background: #fff;
   box-shadow: -2px 0 10px rgba(0,0,0,0.2);
   z-index: 3000;
   transition: right 0.3s ease;
-  display: flex;
-  flex-direction: column;
+  display: flex !important;
+  flex-direction: column !important;
   overflow: hidden;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 #ai-sidebar.open {
-  right: 0;
+  right: 0 !important;
 }
 
 #ai-sidebar-header {
@@ -2134,7 +2135,3 @@ document.getElementById('parking-btn').addEventListener('click', toggleParking);
 
 </body>
 </html>
-
-
-
-PLACEHOLDER_SCRIPT
