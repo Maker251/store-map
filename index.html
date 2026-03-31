@@ -17,7 +17,7 @@
 
 <style>
 html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', sans-serif; }
-#map { position:fixed; top:0; left:0; width:100vw; height:100vh; }
+#map { width:100vw; height:100vh; }
 
 #progress {
   position:absolute;
@@ -64,8 +64,9 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
   background:#45a049;
 }
 
+
 #parking-btn {
-  top:125px;
+  top:170px;
   background:#00897b;
 }
 #parking-btn:hover { background:#00695c; }
@@ -199,14 +200,12 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
 }
 
 
-
 #modal-title {
   font-size:18px;
   font-weight:bold;
   margin-bottom:16px;
   color:#333;
 }
-
 
 
 .modal-section {
@@ -237,6 +236,30 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
 .modal-row {
   display:flex;
   gap:10px;
+}
+.modal-row .modal-section {
+  flex:1;
+  margin-bottom:0;
+}
+
+.modal-input {
+  width:100%;
+  padding:10px;
+  border:2px solid #ddd;
+  border-radius:8px;
+  font-size:14px;
+  box-sizing:border-box;
+  font-family:inherit;
+  transition:.2s;
+}
+.modal-input:focus {
+  outline:none;
+  border-color:#4caf50;
+}
+.modal-row {
+  display:flex;
+  gap:10px;
+  margin-bottom:16px;
 }
 .modal-row .modal-section {
   flex:1;
@@ -330,13 +353,6 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
 }
 
 
-
-
-
-.ai-loading:after {
-  content:'...';
-  animation: dots 1.5s steps(4, end) infinite;
-}
 
 
   40% { content: '..'; }
@@ -571,6 +587,17 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
       </div>
     </div>
 
+    <div class="modal-row">
+      <div class="modal-section">
+        <label>담당자</label>
+        <input type="text" id="manager-input" class="modal-input" placeholder="담당자 이름" maxlength="20">
+      </div>
+      <div class="modal-section">
+        <label>방문 날짜</label>
+        <input type="date" id="visit-date-input" class="modal-input">
+      </div>
+    </div>
+
     <div class="modal-section">
       <label>코멘트 (500자 이내)</label>
       <textarea id="comment-input" maxlength="500" placeholder="방문 후기나 메모를 입력하세요..."></textarea>
@@ -585,7 +612,6 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
 </div>
 
 
-
 <!-- AI 채팅 열기 버튼 -->
 <button id="open-chat-btn">💬</button>
 
@@ -595,16 +621,18 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
     <h3>🤖 AI 어시스턴트</h3>
     <button id="close-sidebar">×</button>
   </div>
+  
   <div id="chat-messages">
     <div class="chat-message ai">
       <div class="message-bubble">
         안녕하세요! 대리점 방문 관리를 도와드립니다. 😊
-
+        
         무엇을 도와드릴까요?
       </div>
       <div class="message-time">지금</div>
     </div>
   </div>
+  
   <div id="chat-input-area">
     <textarea id="chat-input" placeholder="질문을 입력하세요..."></textarea>
     <button id="send-chat-btn">전송</button>
@@ -1185,18 +1213,12 @@ const aiTools = [
   },
   {
     name: "find_nearby_parking",
-    description: "특정 매장 번호 또는 주소 근처의 공영주차장을 조회합니다. 반경(미터) 지정 가능.",
+    description: "특정 매장 번호 근처의 공영주차장을 조회합니다. 반경(미터) 지정 가능.",
     input_schema: {
       type: "object",
       properties: {
-        store_number: {
-          type: "integer",
-          description: "매장 번호. 이 값이 있으면 해당 매장 좌표 기준으로 검색"
-        },
-        radius: {
-          type: "integer",
-          description: "검색 반경 (미터 단위, 기본값 500)"
-        }
+        store_number: { type: "integer", description: "매장 번호" },
+        radius: { type: "integer", description: "검색 반경 (미터, 기본값 500)" }
       }
     }
   }
@@ -1405,36 +1427,25 @@ function getRegionStatistics(level) {
   };
 }
 
+
 // ============================================
-// 공영주차장 근처 검색 (브라우저 메모리에서 직접 조회)
+// 공영주차장 근처 검색
 // ============================================
 function findNearbyParking(storeNumber, radius) {
-  radius = radius || 500; // 기본 500m
-
-  // 매장 좌표 찾기 (markers 배열에서)
+  radius = radius || 500;
   const markerObj = markers.find(m => m.storeNum === storeNumber);
   if (!markerObj) {
-    // geocoding 캐시에서 직접 찾기
     const store = stores.find(s => s.num === storeNumber);
-    if (!store) return { error: `${storeNumber}번 매장을 찾을 수 없습니다.` };
-    return { error: `${storeNumber}번 매장(${store.name})의 좌표가 아직 로드되지 않았습니다. 지도에서 해당 매장을 먼저 확인해주세요.` };
+    if (!store) return { error: storeNumber + "번 매장을 찾을 수 없습니다." };
+    return { error: storeNumber + "번 매장(" + store.name + ")의 좌표가 아직 로드되지 않았습니다. 지도에서 해당 매장을 먼저 확인해주세요." };
   }
-
   const storeLat = markerObj.marker.getPosition().lat();
   const storeLng = markerObj.marker.getPosition().lng();
   const store = stores.find(s => s.num === storeNumber);
-
-  // parkingGeocoded에서 반경 내 주차장 필터링
   const cachedParking = Object.values(parkingGeocoded);
   if (cachedParking.length === 0) {
-    return {
-      매장번호: storeNumber,
-      매장이름: store?.name,
-      안내: "공영주차장 데이터가 아직 로드되지 않았습니다. '공영주차장 찾기' 버튼을 먼저 클릭해주세요."
-    };
+    return { 매장번호: storeNumber, 매장이름: store?.name, 안내: "공영주차장 데이터가 아직 로드되지 않았습니다. '공영주차장 찾기' 버튼을 먼저 클릭해주세요." };
   }
-
-  // 위경도 거리 계산 (Haversine)
   function getDistanceM(lat1, lng1, lat2, lng2) {
     const R = 6371000;
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -1444,23 +1455,14 @@ function findNearbyParking(storeNumber, radius) {
               Math.sin(dLng/2) * Math.sin(dLng/2);
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   }
-
   const nearby = cachedParking
     .map(p => ({ ...p, 거리m: Math.round(getDistanceM(storeLat, storeLng, p.lat, p.lng)) }))
     .filter(p => p.거리m <= radius)
     .sort((a, b) => a.거리m - b.거리m);
-
   return {
-    매장번호: storeNumber,
-    매장이름: store?.name,
-    매장주소: store?.address,
-    검색반경: radius + "m",
-    검색된주차장수: nearby.length,
-    주차장목록: nearby.map(p => ({
-      이름: p.name,
-      주소: p.address,
-      거리: p.거리m + "m"
-    }))
+    매장번호: storeNumber, 매장이름: store?.name, 매장주소: store?.address,
+    검색반경: radius + "m", 검색된주차장수: nearby.length,
+    주차장목록: nearby.map(p => ({ 이름: p.name, 주소: p.address, 거리: p.거리m + "m" }))
   };
 }
 
@@ -1493,7 +1495,7 @@ async function askChatAI(question) {
 - 지역 검색 시 정확한 도구를 사용하세요
 - 동선 계획 시 지역별로 그룹화하여 제안하세요
 - 통계 요청 시 적절한 레벨(시도/구)로 조회하세요
-- 매장 근처 주차장 요청 시 find_nearby_parking 도구를 사용하세요 (반경 기본 500m)
+- 매장 근처 주차장 요청 시 find_nearby_parking 도구를 사용하세요
 
 친절하고 구체적으로 답변해주세요.`;
   
@@ -1754,6 +1756,19 @@ function openModal(storeNum){
   document.getElementById("manager-input").value = data.manager || "";
 
   // 날짜: 저장된 값 있으면 복원, 없으면 오늘 날짜 기본값
+  const visitDateEl = document.getElementById("visit-date-input");
+  if (data.visitDate) {
+    visitDateEl.value = data.visitDate;
+  } else {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth()+1).padStart(2,'0');
+    const dd = String(today.getDate()).padStart(2,'0');
+    visitDateEl.value = `${yyyy}-${mm}-${dd}`;
+  }
+
+  document.getElementById("manager-input").value = data.manager || "";
+
   const visitDateEl = document.getElementById("visit-date-input");
   if (data.visitDate) {
     visitDateEl.value = data.visitDate;
@@ -2129,6 +2144,7 @@ document.getElementById('parking-btn').addEventListener('click', toggleParking);
 
 </script>
 
-
 </body>
 </html>
+
+
