@@ -346,20 +346,22 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
 /* AI 채팅 사이드바 */
 #ai-sidebar {
   position: fixed;
-  top: 0;
-  left: -400px;
+  top: 0 !important;
+  bottom: 0 !important;
+  right: -420px;
   width: 400px;
   height: 100vh;
   background: #fff;
-  box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+  box-shadow: -2px 0 10px rgba(0,0,0,0.2);
   z-index: 3000;
-  transition: left 0.3s ease;
+  transition: right 0.3s ease;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 #ai-sidebar.open {
-  left: 0;
+  right: 0;
 }
 
 #ai-sidebar-header {
@@ -480,7 +482,7 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
 
 #open-chat-btn {
   position: fixed;
-  left: 10px;
+  right: 10px;
   bottom: 20px;
   width: 60px;
   height: 60px;
