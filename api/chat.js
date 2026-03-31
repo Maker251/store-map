@@ -94,6 +94,17 @@ const ALLOWED_TOOLS = [
     name: "get_region_statistics",
     description: "전체 지역별 통계를 조회합니다.",
     input_schema: { type: "object", properties: { level: { type: "string", enum: ["시도", "구"] } }, required: ["level"] }
+  },
+  {
+    name: "find_nearby_parking",
+    description: "특정 매장 번호 근처의 공영주차장을 조회합니다. 반경(미터) 지정 가능.",
+    input_schema: {
+      type: "object",
+      properties: {
+        store_number: { type: "integer", description: "매장 번호" },
+        radius: { type: "integer", description: "검색 반경 (미터, 기본값 500)" }
+      }
+    }
   }
 ];
 
