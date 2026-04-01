@@ -635,7 +635,6 @@ C는 알파벳 세번째, X는 뒤에서 세번째.
 그래서 삼삼이입니다.
 
 무엇을 도와드릴까요?
-        
       </div>
       <div class="message-time">지금</div>
     </div>
@@ -1290,6 +1289,8 @@ function getVisitedStores(region) {
       번호: s.num,
       이름: s.name,
       주소: s.address,
+      담당자: storeData[s.num]?.manager || '없음',
+      방문날짜: storeData[s.num]?.visitDate || '없음',
       코멘트: storeData[s.num]?.comment || '없음'
     }))
   };
@@ -1328,6 +1329,8 @@ function getStoreInfo(storeNumber) {
     이름: store.name,
     주소: store.address,
     방문상태: data.visited ? "방문완료" : "미방문",
+    담당자: data.manager || "없음",
+    방문날짜: data.visitDate || "없음",
     코멘트: data.comment || "없음",
     최종수정일: data.updatedAt || "없음"
   };
