@@ -1487,34 +1487,38 @@ async function askChatAI(question) {
       }
       
       if (result.stop_reason === 'tool_use') {
-        const toolUse = result.content.find(c => c.type === 'tool_use');
+        const toolUses = result.content.filter(c => c.type === 'tool_use');
         
-        if (toolUse) {
-          console.log(`도구 사용: ${toolUse.name}`, toolUse.input);
-          
+        if (toolUses.length > 0) {
           const thinking = document.getElementById(thinkingId);
           if (thinking) {
-            thinking.querySelector('.message-bubble').textContent = 
-              `🔧 ${toolUse.name} 실행 중...`;
+            thinking.querySelector('.message-bubble').textContent =
+              `🔧 ${toolUses.map(t => t.name).join(', ')} 실행 중...`;
           }
-          
-          const toolResult = executeAITool(toolUse.name, toolUse.input);
-          console.log('도구 결과:', toolResult);
-          
+
+          // assistant 메시지 추가 (모든 content 포함)
           messages.push({
             role: 'assistant',
             content: result.content
           });
-          
-          messages.push({
-            role: 'user',
-            content: [{
+
+          // 모든 tool_use에 대한 tool_result를 한 번에 반환
+          const toolResults = toolUses.map(toolUse => {
+            console.log(`도구 사용: ${toolUse.name}`, toolUse.input);
+            const toolResult = executeAITool(toolUse.name, toolUse.input);
+            console.log('도구 결과:', toolResult);
+            return {
               type: 'tool_result',
               tool_use_id: toolUse.id,
               content: JSON.stringify(toolResult)
-            }]
+            };
           });
-          
+
+          messages.push({
+            role: 'user',
+            content: toolResults
+          });
+
           continue;
         }
       }
