@@ -139,7 +139,7 @@ export default async function handler(req, res) {
     const chatMessages = messages.filter(m => m.role !== 'system');
 
     const requestBody = {
-      model: 'claude-sonnet-4-6',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 2000,
       messages: chatMessages,
       tools: ALLOWED_TOOLS
