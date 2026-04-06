@@ -105,6 +105,27 @@ const ALLOWED_TOOLS = [
         radius: { type: "integer", description: "검색 반경 (미터, 기본값 500)" }
       }
     }
+  },
+  {
+    name: "get_visits_by_date",
+    description: "특정 날짜 또는 월의 방문 매장을 조회합니다. 예) '4월 방문 매장', '2026-04-07 방문'",
+    input_schema: {
+      type: "object",
+      properties: {
+        date: { type: "string", description: "조회할 날짜(YYYY-MM-DD) 또는 연월(YYYY-MM). 예: '2026-04', '2026-04-07'" }
+      },
+      required: ["date"]
+    }
+  },
+  {
+    name: "get_visits_by_manager",
+    description: "특정 담당자가 방문한 매장 목록 조회. 담당자명 미입력 시 전체 담당자별 통계 반환.",
+    input_schema: {
+      type: "object",
+      properties: {
+        manager: { type: "string", description: "담당자 이름. 빈 문자열이면 전체 담당자별 통계 반환" }
+      }
+    }
   }
 ];
 
