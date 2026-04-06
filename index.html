@@ -70,6 +70,13 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
 }
 #parking-btn:hover { background:#00695c; }
 #parking-btn.active { background:#004d40; }
+#gps-btn {
+  top:170px;
+  background:#2196f3;
+}
+#gps-btn:hover { background:#1976d2; }
+#gps-btn.active { background:#f44336; }
+
 
 
 .parking-bubble {
@@ -564,6 +571,7 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
 <div id="progress"><div class="progress-total">전체 완료율 0%</div><div class="progress-seoul">서울 완료율 0%</div></div>
 <button id="download-btn" class="action-btn">📥 엑셀 다운로드</button>
 <button id="parking-btn" class="action-btn">🅿️ 공영주차장 찾기</button>
+<button id="gps-btn" class="action-btn">📍 내 위치 추적</button>
 <div id="loading">처리 중...</div>
 <div id="map"></div>
 
@@ -2065,6 +2073,100 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+
+// ============================================
+// 실시간 GPS 위치 추적
+// ============================================
+let gpsWatchId = null;
+let myLocationMarker = null;
+let myLocationCircle = null;
+let gpsActive = false;
+
+function startGPS() {
+  if (!navigator.geolocation) {
+    alert('이 브라우저는 GPS를 지원하지 않습니다.');
+    return;
+  }
+
+  gpsActive = true;
+  const btn = document.getElementById('gps-btn');
+  btn.classList.add('active');
+  btn.textContent = '📍 추적 중...';
+
+  gpsWatchId = navigator.geolocation.watchPosition(
+    function(pos) {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      const accuracy = pos.coords.accuracy; // 정확도(미터)
+      const myPos = new naver.maps.LatLng(lat, lng);
+
+      // 기존 마커/원 제거
+      if (myLocationMarker) myLocationMarker.setMap(null);
+      if (myLocationCircle) myLocationCircle.setMap(null);
+
+      // 내 위치 마커
+      myLocationMarker = new naver.maps.Marker({
+        position: myPos,
+        map: map,
+        icon: {
+          content: '<div style="width:16px;height:16px;background:#2196f3;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.4);"></div>',
+          anchor: new naver.maps.Point(8, 8)
+        },
+        zIndex: 999
+      });
+
+      // 정확도 원
+      myLocationCircle = new naver.maps.Circle({
+        map: map,
+        center: myPos,
+        radius: accuracy,
+        fillColor: '#2196f3',
+        fillOpacity: 0.1,
+        strokeColor: '#2196f3',
+        strokeOpacity: 0.4,
+        strokeWeight: 1
+      });
+
+      // 첫 수신 시 지도 이동
+      if (btn.textContent === '📍 추적 중...') {
+        map.setCenter(myPos);
+        map.setZoom(15);
+        btn.textContent = '🔴 추적 중지';
+      }
+    },
+    function(err) {
+      console.error('GPS 오류:', err);
+      if (err.code === 1) alert('위치 접근이 거부되었습니다. 브라우저 설정에서 위치 권한을 허용해주세요.');
+      else if (err.code === 2) alert('위치를 가져올 수 없습니다. GPS 신호를 확인해주세요.');
+      stopGPS();
+    },
+    {
+      enableHighAccuracy: true,  // 고정밀 GPS 사용
+      maximumAge: 0,             // 캐시 사용 안 함
+      timeout: 10000             // 10초 타임아웃
+    }
+  );
+}
+
+function stopGPS() {
+  if (gpsWatchId !== null) {
+    navigator.geolocation.clearWatch(gpsWatchId);
+    gpsWatchId = null;
+  }
+  gpsActive = false;
+  if (myLocationMarker) { myLocationMarker.setMap(null); myLocationMarker = null; }
+  if (myLocationCircle) { myLocationCircle.setMap(null); myLocationCircle = null; }
+  const btn = document.getElementById('gps-btn');
+  btn.classList.remove('active');
+  btn.textContent = '📍 내 위치 추적';
+}
+
+function toggleGPS() {
+  if (gpsActive) stopGPS();
+  else startGPS();
+}
+
+document.getElementById('gps-btn').addEventListener('click', toggleGPS);
 
 // ============================================
 // 공영주차장 기능 (1,690개 / 병렬 geocoding / localStorage 캐시)
