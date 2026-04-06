@@ -71,13 +71,13 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
 #parking-btn:hover { background:#00695c; }
 #parking-btn.active { background:#004d40; }
 #gps-btn {
-  top:170px;
+  top:215px;
   background:#2196f3;
 }
 #gps-btn:hover { background:#1976d2; }
 #gps-btn.active { background:#f44336; }
 #bike-btn {
-  top:215px;
+  top:170px;
   background:#4caf50;
 }
 #bike-btn:hover { background:#388e3c; }
@@ -579,8 +579,8 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
 <div id="progress"><div class="progress-total">전체 완료율 0%</div><div class="progress-seoul">서울 완료율 0%</div></div>
 <button id="download-btn" class="action-btn">📥 엑셀 다운로드</button>
 <button id="parking-btn" class="action-btn">🅿️ 공영주차장 찾기</button>
-<button id="gps-btn" class="action-btn">📍 내 위치 추적</button>
 <button id="bike-btn" class="action-btn">🚲 따릉이 대여소</button>
+<button id="gps-btn" class="action-btn">📍 내 위치 추적</button>
 <div id="loading">처리 중...</div>
 <div id="map"></div>
 
@@ -1661,97 +1661,7 @@ document.getElementById('chat-input').addEventListener('keypress', function(e) {
 // ============================================
 // AI 분석 기능
 // ============================================
-async function analyzeWithAI() {
-  document.getElementById('ai-modal').classList.add('show');
-  document.getElementById('ai-result').innerHTML = '<div class="ai-loading">AI가 데이터를 분석하고 있습니다</div>';
-  
-  const analysisData = stores.map(store => {
-    const data = storeData[store.num] || {visited: false, comment: ""};
-    return {
-      번호: store.num,
-      이름: store.name,
-      주소: store.address,
-      방문완료: data.visited ? '완료' : '미방문',
-      코멘트: data.comment || '없음'
-    };
-  });
-  
-  const total = stores.length;
-  const completed = analysisData.filter(s => s.방문완료 === '완료').length;
-  
-  try {
-    const response = await fetch(VERCEL_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        messages: [{
-          role: 'user',
-          content: `다음은 전국 ${total}개 대리점 방문 현황 데이터입니다. 
 
-전체 매장: ${total}개
-방문 완료: ${completed}개
-미방문: ${total - completed}개
-
-데이터:
-${JSON.stringify(analysisData, null, 2)}
-
-이 데이터를 분석하여 다음 내용을 알려주세요:
-
-1. 📊 **지역별 방문 현황**
-   - 각 지역(시/도)별 방문 완료율은?
-   - 어느 지역이 방문률이 높고 낮은가?
-
-2. 🎯 **우선순위 추천**
-   - 다음에 방문해야 할 지역/매장 추천 (지역 클러스터링 고려)
-
-3. 💬 **코멘트 분석**
-   - 코멘트가 있는 매장들의 주요 특징
-   - 자주 언급되는 키워드나 패턴
-
-4. ✅ **행동 계획**
-   - 효율적인 방문 순서 제안
-
-한국어로 친절하고 명확하게 답변해주세요.`
-        }]
-      })
-    });
-    
-    const result = await response.json();
-    
-    if (result.content && result.content[0]) {
-      const analysis = result.content[0].text;
-      const resultDiv = document.getElementById('ai-result');
-      resultDiv.innerHTML = '';
-      const wrapper = document.createElement('div');
-      wrapper.style.cssText = 'white-space: pre-wrap; line-height: 1.8;';
-      wrapper.textContent = analysis;
-      resultDiv.appendChild(wrapper);
-    } else {
-      throw new Error('분석 결과를 받지 못했습니다.');
-    }
-    
-  } catch (error) {
-    console.error('AI 분석 오류:', error);
-    const errorDiv = document.getElementById('ai-result');
-    errorDiv.innerHTML = '';
-    const errWrapper = document.createElement('div');
-    errWrapper.style.cssText = 'color: #d32f2f; padding: 20px; text-align: center;';
-    const errTitle = document.createElement('p');
-    errTitle.innerHTML = '<strong>AI 분석에 실패했습니다</strong>';
-    const errMsg = document.createElement('p');
-    errMsg.style.cssText = 'font-size: 14px; margin-top: 10px;';
-    errMsg.textContent = error.message || 'API 연결을 확인해주세요.';
-    errWrapper.appendChild(errTitle);
-    errWrapper.appendChild(errMsg);
-    errorDiv.appendChild(errWrapper);
-  }
-}
-
-function closeAIModal() {
-  document.getElementById('ai-modal').classList.remove('show');
-}
 
 
 // ============================================
