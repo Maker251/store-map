@@ -126,6 +126,17 @@ const ALLOWED_TOOLS = [
         manager: { type: "string", description: "담당자 이름. 빈 문자열이면 전체 담당자별 통계 반환" }
       }
     }
+  },
+  {
+    name: "find_nearby_bike",
+    description: "특정 매장 번호 근처의 따릉이 대여소를 조회합니다. 반경(미터) 지정 가능.",
+    input_schema: {
+      type: "object",
+      properties: {
+        store_number: { type: "integer", description: "매장 번호" },
+        radius: { type: "integer", description: "검색 반경 (미터, 기본값 500)" }
+      }
+    }
   }
 ];
 
