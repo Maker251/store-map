@@ -1420,7 +1420,7 @@ function getVisitsByManager(manager) {
 // 서울 대리점 읽기 전용 모달
 // ============================================
 function openSeoulModal(store) {
-  const data = storeData[store.num] || {};
+  const data = storeData[String(store.num)] || storeData[store.num] || {};
   document.getElementById('seoul-modal-title').textContent = store.name;
   document.getElementById('seoul-modal-address').textContent = store.address;
 
@@ -1478,7 +1478,8 @@ function showSeoulStores() {
 
         const addr = res.v2.addresses[0];
         const pos = new naver.maps.LatLng(addr.y, addr.x);
-        const visited = storeData[store.num] && storeData[store.num].visited;
+        const data_s = storeData[String(store.num)] || storeData[store.num] || {};
+        const visited = data_s.visited;
 
         const marker = new naver.maps.Marker({
           position: pos,
