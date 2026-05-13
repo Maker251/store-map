@@ -1802,12 +1802,12 @@ document.getElementById('download-btn').addEventListener('click', downloadExcel)
 // ============================================
 
 function updateProgress(){
-  const seoulNums = new Set(seoulStores.map(s => s.num));
-  const total = stores.length;
-  const done = stores.filter(s => !seoulNums.has(s.num) && storeData[s.num] && storeData[s.num].visited).length;
-  const percent = Math.round((done/total)*100);
+  const TARGET = 82;
+  const done = stores.filter(s => (storeData[s.num] || storeData[String(s.num)]) && 
+    (storeData[s.num] || storeData[String(s.num)]).visited).length;
+  const percent = Math.round((done/TARGET)*100);
   document.querySelector("#progress .progress-total").innerText =
-    `완료율 ${done}/${total} (${percent}%)`;
+    `완료율 ${done}/${TARGET} (${percent}%)`;
 }
 
 function openModal(storeNum){
