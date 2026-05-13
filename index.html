@@ -59,6 +59,11 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
   top:125px;
   background:#9c27b0;
 }
+#region-btn {
+  top:170px;
+  background:#e65100;
+}
+#region-btn:hover { background:#bf360c; }
 #seoul-btn:hover { background:#7b1fa2; }
 #seoul-btn.active { background:#6a1b9a; }
 
@@ -200,6 +205,58 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
   color:#555;
 }
 
+
+
+#region-modal {
+  display:none;
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background:rgba(0,0,0,0.5);
+  z-index:2000;
+  align-items:center;
+  justify-content:center;
+}
+#region-modal.show { display:flex; }
+#region-modal-content {
+  background:#fff;
+  border-radius:16px;
+  width:420px;
+  max-width:92vw;
+  box-shadow:0 8px 30px rgba(0,0,0,0.3);
+  overflow:hidden;
+}
+#region-table {
+  width:100%;
+  border-collapse:collapse;
+  font-size:14px;
+}
+#region-table th {
+  background:#e65100;
+  color:#fff;
+  padding:10px 12px;
+  text-align:center;
+  font-weight:bold;
+}
+#region-table td {
+  padding:9px 12px;
+  border-bottom:1px solid #eee;
+  text-align:center;
+  color:#333;
+}
+#region-table .group-cell {
+  background:#fff3e0;
+  font-weight:bold;
+  font-size:12px;
+  color:#e65100;
+  line-height:1.6;
+}
+#region-table .total-row td {
+  background:#f5f5f5;
+  font-weight:bold;
+}
+#region-table tr:hover td { background:#fbe9e7; }
+#region-table .total-row:hover td { background:#f5f5f5; }
 
 #seoul-modal {
   display:none;
@@ -568,6 +625,7 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
 <div id="progress"><div class="progress-total">완료율 0%</div></div>
 <button id="download-btn" class="action-btn">📥 엑셀 다운로드</button>
 <button id="seoul-btn" class="action-btn">🗺️ 서울 방문 대리점</button>
+<button id="region-btn" class="action-btn">📋 활동 지역 배분표</button>
 <div id="loading">처리 중...</div>
 <div id="map"></div>
 
@@ -608,6 +666,44 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
   </div>
 </div>
 
+
+
+<!-- 활동 지역 배분표 모달 -->
+<div id="region-modal">
+  <div id="region-modal-content">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 24px 16px 28px;border-bottom:1px solid #eee;">
+      <h3 style="margin:0;font-size:17px;font-weight:bold;color:#222;">📋 활동 지역 배분표</h3>
+      <button onclick="closeRegionModal()" style="width:36px;height:36px;border:none;background:#f0f0f0;border-radius:50%;font-size:18px;cursor:pointer;color:#555;display:flex;align-items:center;justify-content:center;">✕</button>
+    </div>
+    <div style="padding:20px 28px 24px 28px;overflow-y:auto;max-height:70vh;">
+      <table id="region-table">
+        <thead>
+          <tr>
+            <th>구분</th>
+            <th>지역</th>
+            <th>매장 수</th>
+            <th>담당</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td rowspan="7" class="group-cell">수도권<br>(인천 포함)<br>당일출장</td><td>인천(1)</td><td>5</td><td>이동주</td></tr>
+          <tr><td>인천(2)</td><td>5</td><td>이상훈</td></tr>
+          <tr><td>고양/파주</td><td>5</td><td>김정은</td></tr>
+          <tr><td>광명/부천</td><td>5</td><td>김창헌</td></tr>
+          <tr><td>안양/군포</td><td>5</td><td>이안나</td></tr>
+          <tr><td>성남</td><td>4</td><td>여인석</td></tr>
+          <tr><td>의정부</td><td>4</td><td>박윤진</td></tr>
+          <tr><td rowspan="5" class="group-cell">지역거점<br>(광역시 위주)<br>1박2일</td><td>대전/세종</td><td>9</td><td>이영건</td></tr>
+          <tr><td>대구</td><td>10</td><td>정연준</td></tr>
+          <tr><td>부산</td><td>10</td><td>안지환</td></tr>
+          <tr><td>광주</td><td>10</td><td>한승진</td></tr>
+          <tr><td>전주</td><td>10</td><td>이재형</td></tr>
+          <tr class="total-row"><td colspan="2"><strong>합계</strong></td><td><strong>82</strong></td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
 <!-- 서울 대리점 읽기 전용 모달 -->
 <div id="seoul-modal">
@@ -1415,6 +1511,20 @@ function getVisitsByManager(manager) {
     })).sort((a, b) => (a.방문날짜 > b.방문날짜 ? -1 : 1))
   };
 }
+
+// ============================================
+// 활동 지역 배분표 모달
+// ============================================
+function openRegionModal() {
+  document.getElementById('region-modal').classList.add('show');
+}
+function closeRegionModal() {
+  document.getElementById('region-modal').classList.remove('show');
+}
+document.getElementById('region-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeRegionModal();
+});
+document.getElementById('region-btn').addEventListener('click', openRegionModal);
 
 // ============================================
 // 서울 대리점 읽기 전용 모달
