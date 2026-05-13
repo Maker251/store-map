@@ -217,8 +217,8 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
 #seoul-modal-content {
   background:#fff;
   border-radius:16px;
-  width:360px;
-  max-width:90vw;
+  width:400px;
+  max-width:92vw;
   box-shadow:0 8px 30px rgba(0,0,0,0.3);
   overflow:hidden;
 }
@@ -616,8 +616,8 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
       <h3 id="seoul-modal-title">대리점 방문 정보</h3>
       <button class="modal-close" onclick="closeSeoulModal()">✕</button>
     </div>
-    <div class="modal-body">
-      <div id="seoul-modal-address" style="color:#666;font-size:13px;margin-bottom:16px;"></div>
+    <div class="modal-body" style="padding:20px 28px 24px 28px;">
+      <div id="seoul-modal-address" style="color:#666;font-size:13px;margin-bottom:16px;padding:0 2px;" style="color:#666;font-size:13px;margin-bottom:16px;"></div>
       <div class="modal-section">
         <label>방문 상태</label>
         <div id="seoul-modal-status" style="padding:10px;border-radius:8px;font-weight:bold;font-size:14px;"></div>
@@ -1801,8 +1801,9 @@ document.getElementById('download-btn').addEventListener('click', downloadExcel)
 // ============================================
 
 function updateProgress(){
+  const seoulNums = new Set(seoulStores.map(s => s.num));
   const total = stores.length;
-  const done = Object.values(storeData).filter(v=>v.visited).length;
+  const done = stores.filter(s => !seoulNums.has(s.num) && storeData[s.num] && storeData[s.num].visited).length;
   const percent = Math.round((done/total)*100);
   document.querySelector("#progress .progress-total").innerText =
     `완료율 ${done}/${total} (${percent}%)`;
