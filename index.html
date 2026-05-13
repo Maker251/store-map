@@ -1364,39 +1364,58 @@ function showSeoulStores() {
   seoulActive = true;
   const btn = document.getElementById('seoul-btn');
   btn.classList.add('active');
-  btn.textContent = '🗺️ 서울 숨기기';
+  btn.textContent = '🗺️ 서울 로딩 중...';
+
+  let loaded = 0;
+  const total = seoulStores.length;
 
   seoulStores.forEach(function(store) {
-    const visited = storeData[store.num] && storeData[store.num].visited;
-    const marker = new naver.maps.Marker({
-      map: map,
-      title: store.name,
-      icon: {
-        content: '<div style="background:' + (visited ? '#9c27b0' : '#ce93d8') + ';color:#fff;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:bold;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.3);">' + (visited ? '✅' : '⬜') + ' ' + store.name + '</div>',
-        anchor: new naver.maps.Point(0, 12)
-      },
-      zIndex: 600
-    });
+    naver.maps.Service.geocode(
+      { query: store.address },
+      function(status, res) {
+        loaded++;
+        if (loaded === total) {
+          btn.textContent = '🗺️ 서울 숨기기';
+        }
+        if (status !== naver.maps.Service.Status.OK) return;
 
-    naver.maps.Event.addListener(marker, 'click', function() {
-      const data = storeData[store.num] || {};
-      const infoWindow = new naver.maps.InfoWindow({
-        content: '<div style="padding:12px;font-size:13px;max-width:220px;">' +
-          '<b>' + store.name + '</b><br>' +
-          '<span style="color:#666;font-size:12px;">' + store.address + '</span><br>' +
-          '<span style="color:' + (data.visited ? '#9c27b0' : '#999') + ';">' + (data.visited ? '✅ 방문완료' : '⬜ 미방문') + '</span>' +
-          (data.manager ? '<br>담당자: ' + data.manager : '') +
-          (data.visitDate ? '<br>방문일: ' + data.visitDate : '') +
-          '</div>',
-        borderWidth: 0,
-        backgroundColor: '#fff',
-        borderRadius: '8px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
-      });
-      infoWindow.open(map, marker);
-    });
+        const addr = res.v2.addresses[0];
+        const pos = new naver.maps.LatLng(addr.y, addr.x);
+        const visited = storeData[store.num] && storeData[store.num].visited;
 
-    seoulMarkers.push(marker);
+        const marker = new naver.maps.Marker({
+          position: pos,
+          map: map,
+          title: store.name,
+          icon: {
+            content: '<div style="background:' + (visited ? '#9c27b0' : '#ce93d8') + ';color:#fff;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:bold;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.3);">' + (visited ? '✅' : '⬜') + ' ' + store.name + '</div>',
+            anchor: new naver.maps.Point(0, 12)
+          },
+          zIndex: 600
+        });
+
+        naver.maps.Event.addListener(marker, 'click', function() {
+          const data = storeData[store.num] || {};
+          const iw = new naver.maps.InfoWindow({
+            content: '<div style="padding:12px;font-size:13px;max-width:220px;">' +
+              '<b>' + store.name + '</b><br>' +
+              '<span style="color:#666;font-size:12px;">' + store.address + '</span><br>' +
+              '<span style="color:' + (data.visited ? '#9c27b0' : '#999') + ';">' +
+              (data.visited ? '✅ 방문완료' : '⬜ 미방문') + '</span>' +
+              (data.manager ? '<br>담당자: ' + data.manager : '') +
+              (data.visitDate ? '<br>방문일: ' + data.visitDate : '') +
+              '</div>',
+            borderWidth: 0,
+            backgroundColor: '#fff',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+          });
+          iw.open(map, marker);
+        });
+
+        seoulMarkers.push(marker);
+      }
+    );
   });
 
   // 서울 중심으로 지도 이동
