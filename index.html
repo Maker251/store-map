@@ -200,6 +200,37 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
   color:#555;
 }
 
+
+#seoul-modal {
+  display:none;
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background:rgba(0,0,0,0.5);
+  z-index:2000;
+  align-items:center;
+  justify-content:center;
+}
+#seoul-modal.show {
+  display:flex;
+}
+#seoul-modal-content {
+  background:#fff;
+  border-radius:16px;
+  width:360px;
+  max-width:90vw;
+  box-shadow:0 8px 30px rgba(0,0,0,0.3);
+  overflow:hidden;
+}
+.readonly-field {
+  padding:10px 12px;
+  background:#f5f5f5;
+  border-radius:8px;
+  font-size:14px;
+  color:#333;
+  min-height:38px;
+}
+
 .modal-input {
   width:100%;
   padding:10px;
@@ -577,6 +608,37 @@ html, body { margin:0; padding:0; height:100%; font-family: 'Malgun Gothic', san
   </div>
 </div>
 
+
+<!-- 서울 대리점 읽기 전용 모달 -->
+<div id="seoul-modal">
+  <div id="seoul-modal-content">
+    <div class="modal-header">
+      <h3 id="seoul-modal-title">대리점 방문 정보</h3>
+      <button class="modal-close" onclick="closeSeoulModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="seoul-modal-address" style="color:#666;font-size:13px;margin-bottom:16px;"></div>
+      <div class="modal-section">
+        <label>방문 상태</label>
+        <div id="seoul-modal-status" style="padding:10px;border-radius:8px;font-weight:bold;font-size:14px;"></div>
+      </div>
+      <div class="modal-row">
+        <div class="modal-section">
+          <label>담당자</label>
+          <div id="seoul-modal-manager" class="readonly-field"></div>
+        </div>
+        <div class="modal-section">
+          <label>방문 날짜</label>
+          <div id="seoul-modal-date" class="readonly-field"></div>
+        </div>
+      </div>
+      <div class="modal-section">
+        <label>코멘트</label>
+        <div id="seoul-modal-comment" class="readonly-field" style="min-height:60px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
 <!-- AI 분석 모달 -->
 <div id="ai-modal">
   <div id="ai-modal-content">
@@ -1355,6 +1417,41 @@ function getVisitsByManager(manager) {
 }
 
 // ============================================
+// 서울 대리점 읽기 전용 모달
+// ============================================
+function openSeoulModal(store) {
+  const data = storeData[store.num] || {};
+  document.getElementById('seoul-modal-title').textContent = store.name;
+  document.getElementById('seoul-modal-address').textContent = store.address;
+
+  const statusEl = document.getElementById('seoul-modal-status');
+  if (data.visited) {
+    statusEl.textContent = '✅ 방문 완료';
+    statusEl.style.background = '#f3e5f5';
+    statusEl.style.color = '#9c27b0';
+  } else {
+    statusEl.textContent = '⬜ 미방문';
+    statusEl.style.background = '#f5f5f5';
+    statusEl.style.color = '#999';
+  }
+
+  document.getElementById('seoul-modal-manager').textContent = data.manager || '없음';
+  document.getElementById('seoul-modal-date').textContent = data.visitDate || '없음';
+  document.getElementById('seoul-modal-comment').textContent = data.comment || '없음';
+
+  document.getElementById('seoul-modal').classList.add('show');
+}
+
+function closeSeoulModal() {
+  document.getElementById('seoul-modal').classList.remove('show');
+}
+
+// 모달 바깥 클릭 시 닫기
+document.getElementById('seoul-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeSeoulModal();
+});
+
+// ============================================
 // 서울 방문 대리점 표시
 // ============================================
 let seoulMarkers = [];
@@ -1395,22 +1492,7 @@ function showSeoulStores() {
         });
 
         naver.maps.Event.addListener(marker, 'click', function() {
-          const data = storeData[store.num] || {};
-          const iw = new naver.maps.InfoWindow({
-            content: '<div style="padding:12px;font-size:13px;max-width:220px;">' +
-              '<b>' + store.name + '</b><br>' +
-              '<span style="color:#666;font-size:12px;">' + store.address + '</span><br>' +
-              '<span style="color:' + (data.visited ? '#9c27b0' : '#999') + ';">' +
-              (data.visited ? '✅ 방문완료' : '⬜ 미방문') + '</span>' +
-              (data.manager ? '<br>담당자: ' + data.manager : '') +
-              (data.visitDate ? '<br>방문일: ' + data.visitDate : '') +
-              '</div>',
-            borderWidth: 0,
-            backgroundColor: '#fff',
-            borderRadius: '8px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
-          });
-          iw.open(map, marker);
+          openSeoulModal(store);
         });
 
         seoulMarkers.push(marker);
