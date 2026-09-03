@@ -1579,9 +1579,10 @@ function showLoading(show) {
 }
 
 function updateAllBubbles() {
-  Object.keys(storeData).forEach(num => {
-    const bubble = document.getElementById(`b-${num}`);
-    if (bubble && storeData[num].visited) {
+  stores.forEach(s => {
+    const bubble = document.getElementById(`b-${s.num}`);
+    const d = storeData[s.num] || storeData[String(s.num)];
+    if (bubble && d && d.visited) {
       bubble.classList.add('visited');
     }
   });
@@ -1638,7 +1639,7 @@ function updateProgress(){
   const total = stores.length;
   // stores 배열(서울 79개)에 있는 매장만 카운트
   const done = stores.filter(s => {
-    const d = storeData[s.num] || storeData[String(s.num)];
+    const d = storeData[s.num] || storeData[String(s.num)] || storeData[Number(s.num)];
     return d && d.visited;
   }).length;
   const percent = Math.round((done/total)*100);
@@ -1738,7 +1739,7 @@ function updateMarkerLabels(zoom) {
   markers.forEach(markerObj => {
     const storeNum = markerObj.storeNum;
     const store = stores.find(s => s.num === storeNum);
-    const isVisited = storeData[storeNum] && storeData[storeNum].visited ? 'visited' : '';
+    const isVisited = (storeData[storeNum] || storeData[String(storeNum)])?.visited ? 'visited' : '';
     
     let content;
     if (zoom >= 13) {
