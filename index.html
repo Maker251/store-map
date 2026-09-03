@@ -1636,7 +1636,11 @@ document.getElementById('download-btn').addEventListener('click', downloadExcel)
 
 function updateProgress(){
   const total = stores.length;
-  const done = Object.values(storeData).filter(v=>v.visited).length;
+  // stores 배열(서울 79개)에 있는 매장만 카운트
+  const done = stores.filter(s => {
+    const d = storeData[s.num] || storeData[String(s.num)];
+    return d && d.visited;
+  }).length;
   const percent = Math.round((done/total)*100);
   document.querySelector("#progress .progress-total").innerText =
     `완료율 ${done}/${total} (${percent}%)`;
